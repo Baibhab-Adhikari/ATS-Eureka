@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 import os
 import json
@@ -15,6 +16,15 @@ load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# Add CORS middleware to allow requests from your frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins in development
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
 
 # Setup MongoDB connection
 MONGO_URI = "mongodb+srv://root:%40J=a.Gu8(1a4@jd-cv-test-atlas.etm4z.mongodb.net/ATS_Test?retryWrites=true&w=majority"
