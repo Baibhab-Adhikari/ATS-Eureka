@@ -287,7 +287,7 @@ JD:
                 }
 
                 try:
-                    await db.employees.insert_one(record)
+                    await db.employer.insert_one(record)
                 except Exception as e:
                     # Log the database error but continue processing
                     print(f"Database error for {cv_file.filename}: {str(e)}")
