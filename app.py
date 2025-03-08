@@ -156,13 +156,26 @@ async def process_employee(
             jd_text_final = extract_text_from_file(jd_file)
 
         # Construct LLM prompt
-        prompt = f"""Compare the CV with the JD and return a structured JSON response:
-        CV:
-        {cv_text}
+        prompt = f"""
+You are an expert HR consultant with extensive experience evaluating resumes in both technical (e.g., software engineering, data science) and non-technical (e.g., accounting, business analysis) domains. Please analyze the following candidate's CV and job description (JD) and complete these tasks:
 
-        JD:
-        {jd_text_final}
-        """
+1. Compare the CV with the JD and determine how well the candidate meets the job requirements.
+2. Calculate a matching score as a percentage (0 to 100), where 100 means a perfect match.
+3. Identify any missing skills or areas for improvement, and list them as an array of concise strings.
+4. Provide a concise profile summary in no more than 30 words.
+5. Return your answer strictly as a valid JSON object with exactly these keys:
+   - "JD-Match": a number (the match percentage; use 0 if no match).
+   - "Missing Skills": an array of strings (empty array if none).
+   - "Profile Summary": a string (maximum 30 words summarizing strengths and overall profile).
+
+Here is the information to analyze:
+
+CV:
+{cv_text}
+
+JD:
+{jd_text_final}
+"""
 
         # Generate LLM response
         llm_response = get_llm_response(prompt)
@@ -232,13 +245,26 @@ async def process_employer(
                 cv_text = extract_text_from_file(cv_file)
 
                 # Construct LLM prompt
-                prompt = f"""Compare the CV with the JD and return a structured JSON response:
-                CV:
-                {cv_text}
+                prompt = f"""
+You are an expert HR consultant with extensive experience evaluating resumes in both technical (e.g., software engineering, data science) and non-technical (e.g., accounting, business analysis) domains. Please analyze the following candidate's CV and job description (JD) and complete these tasks:
 
-                JD:
-                {jd_text_final}
-                """
+1. Compare the CV with the JD and determine how well the candidate meets the job requirements.
+2. Calculate a matching score as a percentage (0 to 100), where 100 means a perfect match.
+3. Identify any missing skills or areas for improvement, and list them as an array of concise strings.
+4. Provide a concise profile summary in no more than 30 words.
+5. Return your answer strictly as a valid JSON object with exactly these keys:
+   - "JD-Match": a number (the match percentage; use 0 if no match).
+   - "Missing Skills": an array of strings (empty array if none).
+   - "Profile Summary": a string (maximum 30 words summarizing strengths and overall profile).
+
+Here is the information to analyze:
+
+CV:
+{cv_text}
+
+JD:
+{jd_text_final}
+"""
 
                 # Generate LLM response
                 llm_response = get_llm_response(prompt)
