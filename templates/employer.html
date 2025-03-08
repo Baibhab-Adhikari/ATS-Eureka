@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employer - Post JD</title>
+</head>
+<body>
+    <h2>Employer - Post JD</h2>
+    <form method="post" enctype="multipart/form-data">
+        <div>
+            <label for="jd_text">Job Description Text:</label><br>
+            <textarea name="jd_text" id="jd_text" rows="10" cols="30" placeholder="Enter JD text"></textarea><br>
+        </div>
+
+        <div>
+            <label for="jd_file">OR Upload JD File:</label><br>
+            <input type="file" name="jd_file" id="jd_file"><br><br>
+        </div>
+
+        <h3>Upload Candidate Resumes (Maximum 5 Files)</h3>
+        <input type="file" name="candidates[]" id="candidates" multiple accept=".pdf,.docx"><br><br>
+        
+        <div id="file-limit-warning" style="display: none; color: red;">
+            <p>You can upload a maximum of 5 resumes only.</p>
+        </div>
+        
+        <input type="submit" value="Submit JD and Candidates">
+    </form>
+
+    <script>
+        document.getElementById('candidates').addEventListener('change', function(event) {
+            const fileList = event.target.files;
+            const fileLimit = 5;
+
+            if (fileList.length > fileLimit) {
+                document.getElementById('file-limit-warning').style.display = 'block';
+                event.target.setCustomValidity('You can only upload up to 5 files.');
+            } else {
+                document.getElementById('file-limit-warning').style.display = 'none';
+                event.target.setCustomValidity('');
+            }
+        });
+    </script>
+</body>
+</html>
