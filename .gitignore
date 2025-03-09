@@ -15,8 +15,5 @@ test_env/
 
 rough.py
 rough2.py
-# Elastic Beanstalk Files
-.elasticbeanstalk/*
-!.elasticbeanstalk/*.cfg.yml
-!.elasticbeanstalk/*.global.yml
-.ebextensions
+
+eureka.pem
