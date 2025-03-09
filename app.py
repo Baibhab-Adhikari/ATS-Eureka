@@ -7,7 +7,7 @@ import uuid
 from db import get_db  # type: ignore
 from datetime import datetime
 from auth import add_auth_routes, get_current_user
-from helpers import extract_text_from_file, get_llm_response, parse_llm_response, check_rate_limit, get_client_identifier, MAX_REQUESTS
+from helpers import extract_text_from_file, get_llm_response, parse_llm_response, check_rate_limit_demo, get_client_identifier, MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_free_users
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,7 +36,8 @@ async def process_employee(
     file: UploadFile = File(...),
     jd_text: str = Form(None),
     jd_file: UploadFile = File(None),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    remaining_requests: int = Depends(check_rate_limit_free_users) 
 ):
     """API endpoint for CV evaluation based on the given JD."""
     # Validate inputs
@@ -107,10 +108,18 @@ JD:
         except Exception as e:
             # Log the database error but continue to return the analysis
             print(f"Database error: {str(e)}")
+            
+        # Add rate limit information to response
+        response_content = parsed_llm_response.copy()
+        response_content["rate_limit"] = {
+            "remaining_requests": remaining_requests,
+            "max_requests": MAX_REQUESTS_FREE,
+            "reset_after_hours": 24
+        }
 
         return JSONResponse(
             status_code=200,
-            content=parsed_llm_response
+            content=response_content
         )
 
     except Exception as e:
@@ -125,7 +134,8 @@ async def process_employer(
     jd_text: str = Form(None),
     jd_file: UploadFile = File(None),
     candidates: List[UploadFile] = File(...),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    remaining_requests: int = Depends(check_rate_limit_free_users)
 ):
     """API endpoint for evaluating multiple CVs against a JD."""
     # Validate inputs
@@ -228,7 +238,10 @@ JD:
             content={
                 "employer_id": employer_id,
                 "candidates_count": len(candidate_results),
-                "candidates_results": candidate_results
+                "candidates_results": candidate_results,
+                "remaining_requests": remaining_requests,
+                "maximum_requests": MAX_REQUESTS_FREE,
+                "reset_after_hours": 24
             }
         )
 
@@ -243,7 +256,7 @@ JD:
 async def demo(
     file: UploadFile = File(...),
     jd_file: UploadFile = File(None),
-    remaining_requests: int = Depends(check_rate_limit)
+    remaining_requests: int = Depends(check_rate_limit_demo)
 ):
     """Demo API for JD-CV matching with rate limiting"""
     # validation of uploaded files
@@ -302,7 +315,7 @@ JD:
 
         return JSONResponse(
             status_code=200,
-            content=parsed_llm_response
+            content=response_content
         )
 
     except Exception as e:
@@ -310,6 +323,128 @@ JD:
             status_code=500,
             detail=f"Error processing request: {str(e)}"
         )
+
+
+# Profile API endpoints
+
+@app.get("/api/profile", response_class=JSONResponse)
+async def get_user_profile(current_user: dict = Depends(get_current_user)):
+    """
+    Get the profile details of the currently authenticated user (employee or employer).
+    Returns different fields based on the user type.
+    """
+    try:
+        # Get the user type and create a sanitized response
+        user_type = current_user.get("user_type")
+
+        if user_type == "employee":
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "user_id": str(current_user.get("_id", "")),
+                    "full_name": current_user.get("full_name", ""),
+                    "email": current_user.get("email", ""),
+                    "user_type": "employee",
+                    "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
+                    "is_active": current_user.get("is_active", True)
+                }
+            )
+        elif user_type == "employer":
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "user_id": str(current_user.get("_id", "")),
+                    "company_name": current_user.get("company_name", ""),
+                    "email": current_user.get("email", ""),
+                    "user_type": "employer",
+                    "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
+                    "is_active": current_user.get("is_active", True)
+                }
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user type")
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving profile: {str(e)}")
+
+
+@app.get("/api/profile/history", response_class=JSONResponse)
+async def get_user_history(current_user: dict = Depends(get_current_user)):
+    """
+    Get the upload history for the currently authenticated user.
+    Returns different collections based on user type.
+    """
+    try:
+        db = get_db()
+        user_type = current_user.get("user_type")
+        user_id = str(current_user.get("_id", ""))
+
+        if user_type == "employee":
+            # Get employee's CV upload history
+            uploads = await db.employee_uploads.find(
+                {"user_id": user_id}
+            ).sort("created_at", -1).to_list(length=20)
+
+            # Convert ObjectId to string for JSON serialization
+            formatted_uploads = []
+            for upload in uploads:
+                formatted_uploads.append({
+                    "_id": str(upload["_id"]),
+                    "cv_filename": upload.get("cv_filename", ""),
+                    "jd_text": upload.get("jd_text", "")[:100] + "..." if len(upload.get("jd_text", "")) > 100 else upload.get("jd_text", ""),
+                    "analysis_result": upload.get("analysis_result", {}),
+                    "created_at": upload["created_at"].isoformat()
+                })
+
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "user_id": user_id,
+                    "user_type": "employee",
+                    "history": formatted_uploads
+                }
+            )
+
+        elif user_type == "employer":
+            # Get unique employer_ids created by this user
+            employer_jobs = await db.employer_uploads.aggregate([
+                {"$match": {"user_id": user_id}},
+                {"$group": {
+                    "_id": "$employer_id",
+                    "jd_text": {"$first": "$jd_text"},
+                    "created_at": {"$first": "$created_at"},
+                    "count": {"$sum": 1}
+                }},
+                {"$sort": {"created_at": -1}},
+                {"$limit": 20}
+            ]).to_list(length=20)
+
+            # Format the results
+            formatted_jobs = []
+            for job in employer_jobs:
+                formatted_jobs.append({
+                    "employer_id": job["_id"],
+                    "jd_text": job.get("jd_text", "")[:100] + "..." if len(job.get("jd_text", "")) > 100 else job.get("jd_text", ""),
+                    "candidate_count": job["count"],
+                    "created_at": job["created_at"].isoformat()
+                })
+
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "user_id": user_id,
+                    "user_type": "employer",
+                    "history": formatted_jobs
+                }
+            )
+
+        else:
+            raise HTTPException(status_code=400, detail="Invalid user type")
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving history: {str(e)}")
 
 
 if __name__ == '__main__':

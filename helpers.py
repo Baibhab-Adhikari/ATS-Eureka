@@ -47,6 +47,7 @@ model = genai.GenerativeModel(
 
 
 MAX_REQUESTS = 3  # Maximum number of requests allowed
+MAX_REQUESTS_FREE = 7  # max number of requests for free users
 RATE_LIMIT_WINDOW = 24 * 60 * 60  # 24 hours in seconds
 
 
@@ -144,7 +145,7 @@ def get_client_identifier(request: Request) -> str:
     return f"{ip}:{user_agent}"
 
 
-def check_rate_limit(request: Request):
+def check_rate_limit_demo(request: Request):
     """
     Check if the client has exceeded their rate limit using Redis.
     Returns the number of remaining requests.
@@ -185,3 +186,46 @@ def check_rate_limit(request: Request):
 
     # Return remaining requests
     return MAX_REQUESTS - len(timestamps)
+
+
+def check_rate_limit_free_users(request: Request):
+    """
+    Check if the free client has exceeded their rate limit using Redis.
+    Returns the number of remaining requests.
+    Raises HTTPException if rate limit is exceeded.
+    """
+    client_id = get_client_identifier(request)
+    current_time = int(time.time())
+    key_free = f"rate_limit:{client_id}"
+
+    # Get the list of timestamps for this client
+    timestamps_data = redis_client.get(key_free)
+    timestamps = json.loads(
+        timestamps_data) if timestamps_data else []  # type: ignore
+
+    # Filter out timestamps older than the rate limit window
+    timestamps = [ts for ts in timestamps if current_time -
+                  ts < RATE_LIMIT_WINDOW]
+
+    # Check if client has reached the limit
+    if len(timestamps) >= MAX_REQUESTS_FREE:
+        oldest_timestamp = min(timestamps) if timestamps else current_time
+        remaining_time = int(oldest_timestamp +
+                             RATE_LIMIT_WINDOW - current_time)
+        hours = remaining_time // 3600
+        minutes = (remaining_time % 3600) // 60
+        time_msg = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Try again in {time_msg}."
+        )
+
+    # Add current timestamp to the list
+    timestamps.append(current_time)
+
+    # Store updated timestamps in Redis with TTL of RATE_LIMIT_WINDOW
+    redis_client.setex(key_free, RATE_LIMIT_WINDOW, json.dumps(timestamps))
+
+    # Return remaining requests
+    return MAX_REQUESTS_FREE - len(timestamps)
