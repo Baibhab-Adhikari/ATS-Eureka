@@ -7,7 +7,7 @@ import uuid
 from db import get_db  # type: ignore
 from datetime import datetime
 from auth import add_auth_routes, get_current_user
-from helpers import extract_text_from_file, get_llm_response, parse_llm_response
+from helpers import extract_text_from_file, get_llm_response, parse_llm_response, check_rate_limit, get_client_identifier, MAX_REQUESTS
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,6 +23,7 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
 
 # Adding auth routes
 add_auth_routes(app)
@@ -43,6 +44,12 @@ async def process_employee(
         raise HTTPException(
             status_code=400,
             detail="No JD provided. Please provide JD text or JD file."
+        )
+
+    if not file:
+        raise HTTPException(
+            status_code=400,
+            detail="No CV Provided. Please upload CV file (Docx or PDF)."
         )
 
     try:
@@ -223,6 +230,79 @@ JD:
                 "candidates_count": len(candidate_results),
                 "candidates_results": candidate_results
             }
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing request: {str(e)}"
+        )
+
+
+@app.post("/api/demo", response_class=JSONResponse)
+async def demo(
+    file: UploadFile = File(...),
+    jd_file: UploadFile = File(None),
+    remaining_requests: int = Depends(check_rate_limit)
+):
+    """Demo API for JD-CV matching with rate limiting"""
+    # validation of uploaded files
+    if not jd_file:
+        raise HTTPException(
+            status_code=400,
+            detail="No JD Provided. Please upload JD file (Docx or PDF)."
+        )
+    if not file:
+        raise HTTPException(
+            status_code=400,
+            detail="No CV Provided. Please upload CV file (Docx or PDF)."
+        )
+
+    try:
+        # Extract text from uploaded CV
+        cv_text = extract_text_from_file(file)
+
+        # Extract text from JD file
+
+        jd_text_final = extract_text_from_file(jd_file)
+
+        # Construct LLM prompt
+        prompt = f"""
+You are an expert HR consultant with extensive experience evaluating resumes in both technical (e.g., software engineering, data science) and non-technical (e.g., accounting, business analysis) domains. Please analyze the following candidate's CV and job description (JD) and complete these tasks:
+
+1. Compare the CV with the JD and determine how well the candidate meets the job requirements.
+2. Calculate a matching score as a percentage (0 to 100), where 100 means a perfect match.
+3. Identify any missing skills or areas for improvement, and list them as an array of concise strings.
+4. Provide a concise profile summary in no more than 30 words.
+5. Return your answer strictly as a valid JSON object with exactly these keys:
+   - "JD-Match": a number (the match percentage; use 0 if no match).
+   - "Missing Skills": an array of strings (empty array if none).
+   - "Profile Summary": a string (maximum 30 words summarizing strengths and overall profile).
+
+Here is the information to analyze:
+
+CV:
+{cv_text}
+
+JD:
+{jd_text_final}
+"""
+
+        # Generate LLM response
+        llm_response = get_llm_response(prompt)
+        parsed_llm_response = parse_llm_response(llm_response)
+
+        # Add rate limit information to response
+        response_content = parsed_llm_response.copy()
+        response_content["rate_limit"] = {
+            "remaining_requests": remaining_requests,
+            "max_requests": MAX_REQUESTS,
+            "reset_after_hours": 24
+        }
+
+        return JSONResponse(
+            status_code=200,
+            content=parsed_llm_response
         )
 
     except Exception as e:

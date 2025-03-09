@@ -1,11 +1,24 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 import json
 import os
 import uuid
 import pdfplumber as pdf
 import docx
+import redis
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
+from collections import defaultdict
+import time
+
+
+# redis setup (local)
+redis_client = redis.Redis(
+    host='redis-13110.c264.ap-south-1-1.ec2.redns.redis-cloud.com',
+    port=13110,
+    decode_responses=True,
+    username="default",
+    password="wTzGEkFrYHtoSi2RTz3jy54yK297ywft",
+)
 
 
 # Google Gemini LLM setup
@@ -32,6 +45,10 @@ generation_config = {
 }
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash-8b", generation_config=generation_config)  # type: ignore
+
+
+MAX_REQUESTS = 3  # Maximum number of requests allowed
+RATE_LIMIT_WINDOW = 24 * 60 * 60  # 24 hours in seconds
 
 
 # Helper functions
@@ -116,3 +133,56 @@ def extract_text_from_file(file, file_type=None):
             status_code=400,
             detail="Unsupported file type. Please upload PDF or DOCX files."
         )
+
+
+def get_client_identifier(request: Request) -> str:
+    """
+    Get a unique identifier for the client.
+    Uses IP address combined with User-Agent as a simple identifier.
+    """
+    ip = request.client.host  # type: ignore
+    user_agent = request.headers.get("user-agent", "")
+    return f"{ip}:{user_agent}"
+
+
+def check_rate_limit(request: Request):
+    """
+    Check if the client has exceeded their rate limit using Redis.
+    Returns the number of remaining requests.
+    Raises HTTPException if rate limit is exceeded.
+    """
+    client_id = get_client_identifier(request)
+    current_time = int(time.time())
+    key = f"rate_limit:{client_id}"
+
+    # Get the list of timestamps for this client
+    timestamps_data = redis_client.get(key)
+    timestamps = json.loads(
+        timestamps_data) if timestamps_data else []  # type: ignore
+
+    # Filter out timestamps older than the rate limit window
+    timestamps = [ts for ts in timestamps if current_time -
+                  ts < RATE_LIMIT_WINDOW]
+
+    # Check if client has reached the limit
+    if len(timestamps) >= MAX_REQUESTS:
+        oldest_timestamp = min(timestamps) if timestamps else current_time
+        remaining_time = int(oldest_timestamp +
+                             RATE_LIMIT_WINDOW - current_time)
+        hours = remaining_time // 3600
+        minutes = (remaining_time % 3600) // 60
+        time_msg = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Try again in {time_msg}."
+        )
+
+    # Add current timestamp to the list
+    timestamps.append(current_time)
+
+    # Store updated timestamps in Redis with TTL of RATE_LIMIT_WINDOW
+    redis_client.setex(key, RATE_LIMIT_WINDOW, json.dumps(timestamps))
+
+    # Return remaining requests
+    return MAX_REQUESTS - len(timestamps)
