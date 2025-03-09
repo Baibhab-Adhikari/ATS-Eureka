@@ -37,7 +37,7 @@ async def process_employee(
     jd_text: str = Form(None),
     jd_file: UploadFile = File(None),
     current_user: dict = Depends(get_current_user),
-    remaining_requests: int = Depends(check_rate_limit_free_users) 
+    remaining_requests: int = Depends(check_rate_limit_free_users)
 ):
     """API endpoint for CV evaluation based on the given JD."""
     # Validate inputs
@@ -108,7 +108,7 @@ JD:
         except Exception as e:
             # Log the database error but continue to return the analysis
             print(f"Database error: {str(e)}")
-            
+
         # Add rate limit information to response
         response_content = parsed_llm_response.copy()
         response_content["rate_limit"] = {
