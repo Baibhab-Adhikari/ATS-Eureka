@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all Python files and the .env file
 COPY *.py .
-COPY .env .
+
 
 # Expose port
 EXPOSE 8080
