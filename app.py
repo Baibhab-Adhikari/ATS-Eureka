@@ -31,6 +31,11 @@ add_auth_routes(app)
 # API Routes
 
 
+@app.get("/")
+def home():
+    return {"message": "Hello, FastAPI on Heroku!"}
+
+
 @app.post("/api/employee", response_class=JSONResponse)
 async def process_employee(
     file: UploadFile = File(...),
@@ -447,5 +452,3 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
             status_code=500, detail=f"Error retrieving history: {str(e)}")
 
 
-if __name__ == '__main__':
-    uvicorn.run("app:app", port=5000, reload=True)
