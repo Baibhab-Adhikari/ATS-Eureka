@@ -7,7 +7,6 @@ import docx
 import redis
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
-from collections import defaultdict
 import time
 
 
