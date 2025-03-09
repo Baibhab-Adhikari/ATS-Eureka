@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Form
+from fastapi import FastAPI, HTTPException, Depends, status, Form, Security
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from passlib.context import CryptContext  # type: ignore
-from typing import Optional
+from typing import Optional, Annotated
 import os
 from datetime import datetime, timedelta
 import jwt
@@ -32,7 +32,6 @@ class EmployerRegistration(BaseModel):
 
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
-        # Access password from ValidationInfo object
         password = info.data.get('password')
         if password is not None and v != password:
             raise ValueError('Passwords do not match')
@@ -47,7 +46,6 @@ class EmployeeRegistration(BaseModel):
 
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
-        # Access password from ValidationInfo object
         password = info.data.get('password')
         if password is not None and v != password:
             raise ValueError('Passwords do not match')
@@ -62,6 +60,10 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
     user_type: Optional[str] = None
+
+
+# Authentication middleware - fixed tokenUrl to match actual endpoint
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 # Helper functions for auth
 
@@ -84,13 +86,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.now() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY,  # type: ignore
-                             algorithm=ALGORITHM)  # type: ignore
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY,   # type: ignore
+                             algorithm=ALGORITHM)
     return encoded_jwt
-
-
-# Authentication middleware
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 
 async def authenticate_user(db, email: str, password: str, user_type: str):
@@ -101,8 +99,10 @@ async def authenticate_user(db, email: str, password: str, user_type: str):
         return False
     return user
 
+# Fixed get_current_user function to properly handle authentication
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid authentication credentials",
@@ -120,16 +120,39 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
 
     db = get_db()
-    # type: ignore
-    user = await get_user_by_email(db, token_data.email, token_data.user_type)  # type: ignore
+
+    user = await get_user_by_email(db, token_data.email,  # type: ignore
+                                   token_data.user_type)  # type: ignore
     if user is None:
         raise credentials_exception
     return user
 
+# Fixed employee type dependency for specific user type validation
+
+
+async def get_current_employee(current_user=Depends(get_current_user)):
+    if current_user.get("user_type") != "employee":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized - employee access required"
+        )
+    return current_user
+
+# Fixed employer type dependency for specific user type validation
+
+
+async def get_current_employer(current_user=Depends(get_current_user)):
+    if current_user.get("user_type") != "employer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized - employer access required"
+        )
+    return current_user
 
 # Routes to add to FastAPI app
-def add_auth_routes(app: FastAPI):
 
+
+def add_auth_routes(app: FastAPI):
     @app.post("/api/register/employer", response_model=dict)
     async def register_employer(employer: EmployerRegistration):
         db = get_db()
@@ -147,6 +170,7 @@ def add_auth_routes(app: FastAPI):
             "email": employer.business_email,
             "company_name": employer.company_name,
             "password": hashed_password,
+            "user_type": "employer",  # Added user_type field for validation
             "created_at": datetime.now(),
             "is_active": True
         }
@@ -171,6 +195,7 @@ def add_auth_routes(app: FastAPI):
             "email": employee.email,
             "full_name": employee.full_name,
             "password": hashed_password,
+            "user_type": "employee",  # Added user_type field for validation
             "created_at": datetime.now(),
             "is_active": True
         }
@@ -180,7 +205,7 @@ def add_auth_routes(app: FastAPI):
 
     @app.post("/api/token", response_model=Token)
     async def login_for_access_token(
-        form_data: OAuth2PasswordRequestForm = Depends(),
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         user_type: str = Form(...)  # "employer" or "employee"
     ):
         db = get_db()

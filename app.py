@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 from typing import List
 import uuid
 from db import get_db  # type: ignore
@@ -229,3 +230,7 @@ JD:
             status_code=500,
             detail=f"Error processing request: {str(e)}"
         )
+
+
+if __name__ == '__main__':
+    uvicorn.run("app:app", port=5000, reload=True)
