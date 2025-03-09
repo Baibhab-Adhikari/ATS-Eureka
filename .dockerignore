@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+.mypy_cache/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.env.example
+README.md
+static/
+.gitignore
