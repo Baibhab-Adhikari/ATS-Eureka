@@ -1,15 +1,12 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Optional
-import os
-import json
+from typing import List
 import uuid
-import pdfplumber as pdf
-import docx
-from motor.motor_asyncio import AsyncIOMotorClient
-import google.generativeai as genai
-from google.ai.generativelanguage_v1beta.types import content
+from db import get_db  # type: ignore
+from datetime import datetime
+from auth import add_auth_routes, get_current_user
+from helpers import extract_text_from_file, get_llm_response, parse_llm_response
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,118 +23,8 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Setup MongoDB connection
-MONGO_URI = "mongodb+srv://root:%40J=a.Gu8(1a4@jd-cv-test-atlas.etm4z.mongodb.net/ATS_Test?retryWrites=true&w=majority"
-client = AsyncIOMotorClient(MONGO_URI)  # type: ignore
-db = client.ATS_Test
-
-# Google Gemini LLM setup
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-
-generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 40,
-    "max_output_tokens": 8192,
-    "response_schema": content.Schema(
-        type=content.Type.OBJECT,
-        properties={
-            "JD-Match": content.Schema(type=content.Type.NUMBER),
-            "Missing Skills": content.Schema(
-                type=content.Type.ARRAY,
-                items=content.Schema(type=content.Type.STRING),
-            ),
-            "Profile Summary": content.Schema(type=content.Type.STRING),
-            "Position": content.Schema(type=content.Type.INTEGER),
-        },
-    ),
-    "response_mime_type": "application/json",
-}
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash-8b", generation_config=generation_config)  # type: ignore
-
-# Helper functions
-
-
-def extract_pdf_text(file):
-    """Extracts text from a PDF file object."""
-    temp_file_path = f"temp_{uuid.uuid4()}.pdf"
-    try:
-        # Save uploaded file to a temporary location
-        with open(temp_file_path, "wb") as temp_file:
-            contents = file.read()
-            temp_file.write(contents)
-            file.seek(0)  # Reset file pointer for potential reuse
-
-        # Extract text from the saved file
-        text = ""
-        with pdf.open(temp_file_path) as pdf_file:
-            for page in pdf_file.pages:
-                text += page.extract_text() or ""
-        return text
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-
-
-def extract_docx_text(file):
-    """Extracts text from a DOCX file object."""
-    temp_file_path = f"temp_{uuid.uuid4()}.docx"
-    try:
-        # Save uploaded file to a temporary location
-        with open(temp_file_path, "wb") as temp_file:
-            contents = file.read()
-            temp_file.write(contents)
-            file.seek(0)  # Reset file pointer for potential reuse
-
-        # Extract text from the saved file
-        doc = docx.Document(temp_file_path)
-        return "\n".join([para.text for para in doc.paragraphs])
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-
-
-def get_llm_response(prompt):
-    """Gets response from LLM."""
-    response = model.generate_content(prompt)
-    return response.text
-
-
-def parse_llm_response(llm_response):
-    """Parses LLM response into structured JSON."""
-    try:
-        response_json = json.loads(llm_response)
-        return {
-            "JD-Match": response_json.get("JD-Match", 0),
-            "Missing Skills": response_json.get("Missing Skills", []),
-            "Profile Summary": response_json.get("Profile Summary", ""),
-        }
-    except json.JSONDecodeError:
-        # Handle case where LLM response is not valid JSON
-        return {
-            "JD-Match": 0,
-            "Missing Skills": ["Error parsing LLM response"],
-            "Profile Summary": "Could not generate profile summary due to parsing error.",
-        }
-
-
-def extract_text_from_file(file, file_type=None):
-    """Extracts text from a file based on its extension."""
-    if not file_type:
-        file_type = file.filename.lower()
-
-    if file_type.endswith(".pdf"):
-        return extract_pdf_text(file.file)
-    elif file_type.endswith(".docx"):
-        return extract_docx_text(file.file)
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported file type. Please upload PDF or DOCX files."
-        )
+# Adding auth routes
+add_auth_routes(app)
 
 # API Routes
 
@@ -146,7 +33,8 @@ def extract_text_from_file(file, file_type=None):
 async def process_employee(
     file: UploadFile = File(...),
     jd_text: str = Form(None),
-    jd_file: UploadFile = File(None)
+    jd_file: UploadFile = File(None),
+    current_user: dict = Depends(get_current_user)
 ):
     """API endpoint for CV evaluation based on the given JD."""
     # Validate inputs
@@ -157,6 +45,9 @@ async def process_employee(
         )
 
     try:
+        # Get database connection
+        db = get_db()
+
         # Extract text from uploaded CV
         cv_text = extract_text_from_file(file)
 
@@ -198,11 +89,13 @@ JD:
             "jd_filename": jd_file.filename if jd_file else None,
             "jd_text": jd_text_final,
             "cv_text": cv_text,
-            "analysis_result": parsed_llm_response
+            "analysis_result": parsed_llm_response,
+            "user_id": str(current_user.get("_id", "")),
+            "created_at": datetime.now()
         }
 
         try:
-            await db.employees.insert_one(record)
+            await db.employee_uploads.insert_one(record)
         except Exception as e:
             # Log the database error but continue to return the analysis
             print(f"Database error: {str(e)}")
@@ -223,7 +116,8 @@ JD:
 async def process_employer(
     jd_text: str = Form(None),
     jd_file: UploadFile = File(None),
-    candidates: List[UploadFile] = File(...)
+    candidates: List[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user)
 ):
     """API endpoint for evaluating multiple CVs against a JD."""
     # Validate inputs
@@ -240,6 +134,9 @@ async def process_employer(
         )
 
     try:
+        # Get database connection
+        db = get_db()
+
         # Extract JD text
         jd_text_final = jd_text
         if not jd_text and jd_file:
@@ -293,11 +190,13 @@ JD:
                     "cv_filename": cv_file.filename,
                     "jd_text": jd_text_final,
                     "cv_text": cv_text,
-                    "analysis_result": parsed_response
+                    "analysis_result": parsed_response,
+                    "user_id": str(current_user.get("_id", "")),
+                    "created_at": datetime.now()
                 }
 
                 try:
-                    await db.employer.insert_one(record)
+                    await db.employer_uploads.insert_one(record)
                 except Exception as e:
                     # Log the database error but continue processing
                     print(f"Database error for {cv_file.filename}: {str(e)}")
