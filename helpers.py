@@ -138,9 +138,11 @@ def extract_text_from_file(file, file_type=None):
 def get_client_identifier(request: Request) -> str:
     """
     Get a unique identifier for the client.
-    Uses IP address combined with User-Agent as a simple identifier.
+    Uses the X-Forwarded-For header (if available) combined with User-Agent.
     """
-    ip = request.client.host  # type: ignore
+    forwarded_for = request.headers.get("x-forwarded-for")
+    ip = forwarded_for.split(",")[0].strip(
+    ) if forwarded_for else request.client.host  # type: ignore
     user_agent = request.headers.get("user-agent", "")
     return f"{ip}:{user_agent}"
 
@@ -153,10 +155,10 @@ def check_rate_limit_demo(request: Request):
     """
     client_id = get_client_identifier(request)
     current_time = int(time.time())
-    key = f"rate_limit:{client_id}"
+    key_demo = f"rate_limit:{client_id}"
 
     # Get the list of timestamps for this client
-    timestamps_data = redis_client.get(key)
+    timestamps_data = redis_client.get(key_demo)
     timestamps = json.loads(
         timestamps_data) if timestamps_data else []  # type: ignore
 
@@ -182,7 +184,7 @@ def check_rate_limit_demo(request: Request):
     timestamps.append(current_time)
 
     # Store updated timestamps in Redis with TTL of RATE_LIMIT_WINDOW
-    redis_client.setex(key, RATE_LIMIT_WINDOW, json.dumps(timestamps))
+    redis_client.setex(key_demo, RATE_LIMIT_WINDOW, json.dumps(timestamps))
 
     # Return remaining requests
     return MAX_REQUESTS - len(timestamps)
