@@ -46,8 +46,8 @@ model = genai.GenerativeModel(
     model_name="gemini-1.5-flash-8b", generation_config=generation_config)  # type: ignore
 
 
-MAX_REQUESTS = 3  # Maximum number of requests allowed
-MAX_REQUESTS_FREE = 7  # max number of requests for free users
+MAX_REQUESTS = 1000  # Maximum number of requests allowed
+MAX_REQUESTS_FREE = 1000  # max number of requests for free users
 RATE_LIMIT_WINDOW = 24 * 60 * 60  # 24 hours in seconds
 
 
