@@ -9,8 +9,11 @@ __pycache__/
 venv/
 env/
 .env
+test_env/
 # Ignore system-specific files
 .DS_Store
 
 rough.py
 rough2.py
+
+eureka.pem
