@@ -12,11 +12,11 @@ import time
 
 # redis setup (local)
 redis_client = redis.Redis(
-    host='redis-13110.c264.ap-south-1-1.ec2.redns.redis-cloud.com',
-    port=13110,
+    host=os.environ["REDIS_HOSTNAME"],
+    port=os.environ["REDIS_PORT"],
     decode_responses=True,
-    username="default",
-    password="wTzGEkFrYHtoSi2RTz3jy54yK297ywft",
+    username=os.environ["REDIS_USERNAME"],
+    password=os.environ["REDIS_PASSWORD"],
 )
 
 
