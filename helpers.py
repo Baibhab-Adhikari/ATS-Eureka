@@ -11,18 +11,21 @@ from fastapi import HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from google.ai.generativelanguage_v1beta.types import content
 
+from config import (GEMINI_API_KEY, REDIS_HOSTNAME, REDIS_PASSWORD, REDIS_PORT,
+                    REDIS_USERNAME)
+
 # redis setup (local)
 redis_client = redis.Redis(
-    host=os.environ["REDIS_HOSTNAME"],
-    port=os.environ["REDIS_PORT"],  # type: ignore
+    host=REDIS_HOSTNAME,  # type: ignore
+    port=REDIS_PORT,  # type: ignore
     decode_responses=True,
-    username=os.environ["REDIS_USERNAME"],
-    password=os.environ["REDIS_PASSWORD"],
+    username=REDIS_USERNAME,
+    password=REDIS_PASSWORD,
 )
 
 
 # Google Gemini LLM setup
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])  # type: ignore
+genai.configure(api_key=GEMINI_API_KEY)  # type: ignore
 
 generation_config = {
     "temperature": 0.2,

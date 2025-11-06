@@ -1,19 +1,12 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
-from dotenv import load_dotenv
+from config import MONGO_URI  
 
-# Load environment variables
-load_dotenv()
 
-# Get MongoDB URI from environment
-MONGO_URI = os.environ["MONGO_URI"]
 if not MONGO_URI:
-    raise ValueError("No MONGO_URI environment variable set")
+    raise ValueError("MONGO_URI environment variable not set.")
 
-# Create client once at module level
 client = AsyncIOMotorClient(MONGO_URI)  # type: ignore
-db = client.ATS_Test
+
 
 def get_db():
-    """Returns the database instance."""
-    return db
+    return client.get_database("ATS_Test")

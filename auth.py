@@ -1,25 +1,27 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Form, Security
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr, Field, field_validator
-from passlib.context import CryptContext  # type: ignore
-from typing import Optional, Annotated
-import os
 from datetime import datetime, timedelta
+from typing import Annotated, Optional
+
 import jwt
 from bson import ObjectId
+from fastapi import Depends, FastAPI, Form, HTTPException, Security, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from passlib.context import CryptContext  # type: ignore
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from db import get_db
 
 # Password hashing setup
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT setup
-SECRET_KEY = os.getenv("SECRET_KEY")
+# SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("No SECRET_KEY environment variable set for JWT")
 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+# ALGORITHM = "HS256"
+# ACCESS_TOKEN_EXPIRE_MINUTES = int(
+#     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 # Pydantic models for request validation
 

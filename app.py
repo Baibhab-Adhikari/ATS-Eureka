@@ -16,7 +16,6 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
 
-load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI()
