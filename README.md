@@ -4,7 +4,7 @@ ATS-Eureka is an intelligent Applicant Tracking System that leverages AI to anal
 
 ## 🚀 Features
 
-- **AI-Powered Resume Analysis**: Advanced matching algorithm using Google's Gemini Flash 1.5 8B model
+- **AI-Powered Resume Analysis**: Advanced matching algorithm using Google's Gemini 2.5 Flash model
   - State-of-the-art language understanding
   - Fast and efficient processing
   - Accurate skill matching and analysis
@@ -15,25 +15,24 @@ ATS-Eureka is an intelligent Applicant Tracking System that leverages AI to anal
 - **Rate Limiting**: Managed API access with Redis-based rate limiting
 - **Secure Authentication**: JWT-based authentication system
 
-### AI Model Details
+## 🚀 Recent Updates (v1.1)
 
-The system leverages Google's Gemini Flash 1.5 8B model, which offers:
-
-- **Flash Attention**: Optimized attention mechanism for faster processing
-- **8B Parameters**: Balanced model size for both accuracy and speed
-- **Context Understanding**: Deep comprehension of both technical and non-technical roles
-- **Structured Output**: Consistent JSON responses with matching scores and analysis
+- **Performance Boost**: Implemented concurrent processing (`asyncio.gather`) for the employer's batch analysis endpoint, cutting response times by over 50%.
+- **Containerization**: Fully containerized the backend application using Docker for consistent, portable, and scalable deployments.
+- **Cloud-Native Workflow**: Established a professional workflow for pushing versioned Docker images to a remote container registry (AWS ECR), enabling a true CI/CD pipeline.
+- **Architectural Refactoring**: Centralized all environment variable management into a dedicated configuration module, improving robustness and preventing startup errors in Docker.
+- **Bug Fixes & Enhancements**: Corrected the employer history endpoint to accurately display job batches and their ranked candidates.
 
 ## 💻 Tech Stack
 
 ### Backend
 
-- **FastAPI**: Modern Python web framework
-- **MongoDB Atlas**: Cloud database for storing user data and analysis results
-- **Redis Cloud**: Rate limiting and caching
+- **FastAPI**: Modern, high-performance Python web framework
+- **MongoDB Atlas**: Cloud-native database for storing user data and analysis results
+- **Redis Cloud**: In-memory data store for rate limiting and caching
 - **Google Gemini AI**: Advanced language model for resume analysis
-- **Docker**: Containerization
-- **Heroku**: Cloud deployment platform
+- **Docker & AWS ECR**: For containerization and cloud-native image storage
+- **Deployment**: Ready for deployment on any container-based platform (e.g., AWS ECS, Fargate, Heroku)
 
 ### Frontend
 
@@ -81,6 +80,7 @@ GEMINI_API_KEY=your_gemini_api_key
 REDIS_HOST=your_redis_host
 REDIS_PORT=your_redis_port
 REDIS_PASSWORD=your_redis_password
+REDIS_USERNAME=your_redis_username
 ```
 
 5. Run the application
@@ -99,10 +99,10 @@ uvicorn app:app --reload
 
 ```json
 {
-    "company_name": "string",
-    "business_email": "string",
-    "password": "string",
-    "confirm_password": "string"
+  "company_name": "string",
+  "business_email": "string",
+  "password": "string",
+  "confirm_password": "string"
 }
 ```
 
@@ -112,10 +112,10 @@ uvicorn app:app --reload
 
 ```json
 {
-    "full_name": "string",
-    "email": "string",
-    "password": "string",
-    "confirm_password": "string"
+  "full_name": "string",
+  "email": "string",
+  "password": "string",
+  "confirm_password": "string"
 }
 ```
 
@@ -125,9 +125,9 @@ uvicorn app:app --reload
 
 ```json
 {
-    "username": "string",
-    "password": "string",
-    "user_type": "string"
+  "username": "string",
+  "password": "string",
+  "user_type": "string"
 }
 ```
 
@@ -169,50 +169,55 @@ candidates: Multiple CV files (PDF/DOCX)
 - **GET** `/api/profile/history`
 - **Authorization**: Bearer Token
 
-## 📸 Screenshots
-
-### Landing Page
-
-![Landing Page](assets/images/landing.png)
-
-<!-- Add your landing page screenshot -->
-
-### Employer Dashboard
-
-![Employer Dashboard](assets/images/employer-dashboard.png)
-
-<!-- Add your employer dashboard screenshot -->
-
-### Employee Analysis
-
-![Employee Analysis](assets/images/employee-analysis.png)
-
-<!-- Add your employee analysis page screenshot -->
-
 ## 🚀 Deployment
 
-### Backend Deployment (Heroku)
+The application is containerized with Docker, making it highly portable.
 
-1. Create Heroku app
+### Recommended Workflow (AWS ECR)
 
-```bash
-heroku create your-app-name
-```
+This workflow is aligned with modern DevOps practices and prepares the application for a scalable cloud deployment on services like AWS ECS or Fargate.
 
-2. Set environment variables
+1.  **Build the Docker Image**
+    ```bash
+    docker build -t ats-eureka .
+    ```
+2.  **Authenticate with a Container Registry** (e.g., AWS ECR)
+    ```bash
+    aws ecr get-login-password --region your-region | docker login --username AWS --password-stdin your-aws-account-id.dkr.ecr.your-region.amazonaws.com
+    ```
+3.  **Tag the Image**
+    ```bash
+    docker tag ats-eureka:latest your-aws-account-id.dkr.ecr.your-region.amazonaws.com/ats-eureka:latest
+    ```
+4.  **Push the Image to the Registry**
+    ```bash
+    docker push your-aws-account-id.dkr.ecr.your-region.amazonaws.com/ats-eureka:latest
+    ```
+    The image can now be pulled and run on any server or cloud service.
 
-```bash
-heroku config:set MONGO_URI=your_mongodb_uri
-heroku config:set SECRET_KEY=your_jwt_secret_key
-heroku config:set GEMINI_API_KEY=your_gemini_api_key
-```
+### Simple Local/Heroku Deployment
 
-3. Deploy using Docker
+For quick testing or simple deployments, you can run the container locally or push it directly to Heroku.
 
-```bash
-heroku container:push web
-heroku container:release web
-```
+1.  **Run Locally**
+    ```bash
+    # Make sure your .env file is configured
+    docker run -p 8000:8000 --env-file .env ats-eureka
+    ```
+2.  **Deploy to Heroku**
+
+    ```bash
+    # Login and create app
+    heroku login
+    heroku create your-app-name
+    heroku container:login
+
+    # Set environment variables in Heroku dashboard
+
+    # Push and release
+    heroku container:push web -a your-app-name
+    heroku container:release web -a your-app-name
+    ```
 
 ### Frontend Deployment (AWS)
 
