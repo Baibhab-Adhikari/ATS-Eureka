@@ -1,19 +1,20 @@
-from fastapi import HTTPException, Request
+import io
 import json
 import os
-import uuid
-import pdfplumber as pdf
-import docx
-import redis
-import google.generativeai as genai
-from google.ai.generativelanguage_v1beta.types import content
 import time
 
+import docx
+import google.generativeai as genai
+import pdfplumber as pdf
+import redis
+from fastapi import HTTPException, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
+from google.ai.generativelanguage_v1beta.types import content
 
 # redis setup (local)
 redis_client = redis.Redis(
     host=os.environ["REDIS_HOSTNAME"],
-    port=os.environ["REDIS_PORT"],
+    port=os.environ["REDIS_PORT"],  # type: ignore
     decode_responses=True,
     username=os.environ["REDIS_USERNAME"],
     password=os.environ["REDIS_PASSWORD"],
@@ -21,17 +22,17 @@ redis_client = redis.Redis(
 
 
 # Google Gemini LLM setup
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])  # type: ignore
 
 generation_config = {
-    "temperature": 1,
+    "temperature": 0.2,
     "top_p": 0.95,
     "top_k": 40,
     "max_output_tokens": 8192,
     "response_schema": content.Schema(
         type=content.Type.OBJECT,
         properties={
-            "JD-Match": content.Schema(type=content.Type.NUMBER),
+            "JD-Match": content.Schema(type=content.Type.INTEGER),
             "Missing Skills": content.Schema(
                 type=content.Type.ARRAY,
                 items=content.Schema(type=content.Type.STRING),
@@ -42,8 +43,8 @@ generation_config = {
     ),
     "response_mime_type": "application/json",
 }
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash-8b", generation_config=generation_config)  # type: ignore
+model = genai.GenerativeModel(  # type: ignore
+    model_name="gemini-flash-latest", generation_config=generation_config)  # type: ignore
 
 
 MAX_REQUESTS = 1000  # Maximum number of requests allowed
@@ -54,51 +55,33 @@ RATE_LIMIT_WINDOW = 24 * 60 * 60  # 24 hours in seconds
 # Helper functions
 
 
-def extract_pdf_text(file):
-    """Extracts text from a PDF file object."""
-    temp_file_path = f"temp_{uuid.uuid4()}.pdf"
+def extract_pdf_text(file: io.BytesIO) -> str:
+    """Extracts text from a PDF file object in memory."""
+    text: str = ""
+    # removed unnecessary disk I/O
+    with pdf.open(file) as pdf_file:
+        for page in pdf_file.pages:
+            text += page.extract_text() or ""
+
+    return text
+
+
+def extract_docx_text(file: io.BytesIO) -> str:
+    """Extracts text from a DOCX file object in memory."""
+    doc = docx.Document(file)
+    return "\n".join([para.text for para in doc.paragraphs])
+
+
+async def get_llm_response(prompt: str) -> str:
+    """Gets response from LLM asynchronously."""
     try:
-        # Save uploaded file to a temporary location
-        with open(temp_file_path, "wb") as temp_file:
-            contents = file.read()
-            temp_file.write(contents)
-            file.seek(0)  # Reset file pointer for potential reuse
-
-        # Extract text from the saved file
-        text = ""
-        with pdf.open(temp_file_path) as pdf_file:
-            for page in pdf_file.pages:
-                text += page.extract_text() or ""
-        return text
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-
-
-def extract_docx_text(file):
-    """Extracts text from a DOCX file object."""
-    temp_file_path = f"temp_{uuid.uuid4()}.docx"
-    try:
-        # Save uploaded file to a temporary location
-        with open(temp_file_path, "wb") as temp_file:
-            contents = file.read()
-            temp_file.write(contents)
-            file.seek(0)  # Reset file pointer for potential reuse
-
-        # Extract text from the saved file
-        doc = docx.Document(temp_file_path)
-        return "\n".join([para.text for para in doc.paragraphs])
-    finally:
-        # Clean up temporary file
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-
-
-def get_llm_response(prompt):
-    """Gets response from LLM."""
-    response = model.generate_content(prompt)
-    return response.text
+        # Using the asynchronous method
+        response = await model.generate_content_async(prompt)
+        return response.text
+    except Exception as e:
+        print(f"Error in async LLM call: {e}")
+        raise HTTPException(
+            status_code=500, detail="Error generating response from LLM")
 
 
 def parse_llm_response(llm_response):
@@ -119,20 +102,37 @@ def parse_llm_response(llm_response):
         }
 
 
-def extract_text_from_file(file, file_type=None):
-    """Extracts text from a file based on its extension."""
-    if not file_type:
-        file_type = file.filename.lower()
+# NOTE: The original extract_text_from_file is now a synchronous helper
+def _extract_text_from_file_sync(file: UploadFile):
+    """Synchronous helper for text extraction."""
+    if not file.filename:
+        raise HTTPException(
+            status_code=400, detail="File is missing a filename.")
 
-    if file_type.endswith(".pdf"):
-        return extract_pdf_text(file.file)
-    elif file_type.endswith(".docx"):
-        return extract_docx_text(file.file)
+    file_extension = os.path.splitext(file.filename)[1].lower()
+
+    # Read file content into an in-memory buffer
+    # NOTE: We are using the synchronous file.file.read() here because
+    # this whole function will be run in a separate thread.
+    file_content = io.BytesIO(file.file.read())
+
+    if file_extension == ".pdf":
+        return extract_pdf_text(file_content)
+    elif file_extension == ".docx":
+        return extract_docx_text(file_content)
     else:
         raise HTTPException(
             status_code=400,
             detail="Unsupported file type. Please upload PDF or DOCX files."
         )
+
+
+async def extract_text_from_file(file: UploadFile) -> str:
+    """
+    Asynchronously extracts text from a file by running the
+    synchronous extraction logic in a separate thread.
+    """
+    return await run_in_threadpool(_extract_text_from_file_sync, file)
 
 
 def get_client_identifier(request: Request) -> str:
@@ -155,7 +155,7 @@ def check_rate_limit_demo(request: Request):
     """
     client_id = get_client_identifier(request)
     current_time = int(time.time())
-    key_demo = f"rate_limit:{client_id}"
+    key_demo = f"rate_limit:demo:{client_id}"
 
     # Get the list of timestamps for this client
     timestamps_data = redis_client.get(key_demo)
@@ -198,7 +198,7 @@ def check_rate_limit_free_users(request: Request):
     """
     client_id = get_client_identifier(request)
     current_time = int(time.time())
-    key_free = f"rate_limit:{client_id}"
+    key_free = f"rate_limit:free:{client_id}"
 
     # Get the list of timestamps for this client
     timestamps_data = redis_client.get(key_free)

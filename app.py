@@ -1,13 +1,20 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from typing import List
-import uuid
-from db import get_db  # type: ignore
 from datetime import datetime
-from auth import add_auth_routes, get_current_user
-from helpers import extract_text_from_file, get_llm_response, parse_llm_response, check_rate_limit_demo, get_client_identifier, MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_free_users
+from typing import List
+import asyncio
+
 from dotenv import load_dotenv
+from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
+                     UploadFile)
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from auth import add_auth_routes, get_current_user
+from db import get_db  # type: ignore
+from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
+                     check_rate_limit_free_users, extract_text_from_file,
+                     get_client_identifier, get_llm_response,
+                     parse_llm_response)
 
 load_dotenv()
 
@@ -22,6 +29,38 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Custom Exception Handler for Validation Errors
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # For simplicity, we'll format the first error message.
+    first_error = exc.errors()[0]
+
+    # Get the internal name of the field that failed validation
+    field_name = str(first_error['loc'][-1])
+
+    # Map internal field names to user-friendly descriptions
+    field_map = {
+        "file": "Candidate CV",
+        "jd_file": "Job Description file",
+        "candidates": "at least one Candidate CV"
+    }
+
+    user_friendly_name = field_map.get(field_name, f"the '{field_name}' field")
+
+    # Create a more specific error message
+    if first_error['type'] == 'missing':
+        error_message = f"Missing required input: Please provide the {user_friendly_name}."
+    else:
+        # A fallback for other types of validation errors (e.g., wrong data type)
+        error_message = f"Invalid input for {user_friendly_name}. {first_error['msg']}"
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": error_message},
+    )
 
 
 # Adding auth routes
@@ -58,31 +97,30 @@ async def process_employee(
         )
 
     try:
-        # Get database connection
-        db = get_db()
+        # Asynchronously extract text from files
+        cv_text = await extract_text_from_file(file)
+        jd_text_final = ""
+        if jd_file:
+            jd_text_final = await extract_text_from_file(jd_file)
+        elif jd_text:
+            jd_text_final = jd_text
 
-        # Extract text from uploaded CV
-        cv_text = extract_text_from_file(file)
+        if not jd_text_final:
+            raise HTTPException(
+                status_code=400, detail="No job description provided.")
 
-        # Extract text from JD file if provided
-        jd_text_final = jd_text
-        if not jd_text and jd_file:
-            jd_text_final = extract_text_from_file(jd_file)
-
-        # Construct LLM prompt
+        # Construct the consistent, chain-of-thought LLM prompt
         prompt = f"""
-You are an expert HR consultant with extensive experience evaluating resumes in both technical (e.g., software engineering, data science) and non-technical (e.g., accounting, business analysis) domains. Please analyze the following candidate's CV and job description (JD) and complete these tasks:
+You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
-1. Compare the CV with the JD and determine how well the candidate meets the job requirements.
-2. Calculate a matching score as a percentage (0 to 100), where 100 means a perfect match.
-3. Identify any missing skills or areas for improvement, and list them as an array of concise strings.
-4. Provide a concise profile summary in no more than 30 words.
-5. Return your answer strictly as a valid JSON object with exactly these keys:
-   - "JD-Match": a number (the match percentage; use 0 if no match).
-   - "Missing Skills": an array of strings (empty array if none).
-   - "Profile Summary": a string (maximum 30 words summarizing strengths and overall profile).
+Follow these steps exactly:
+1.  First, break down the JD into a list of 5 to 8 of the most critical, distinct requirements. These can be skills, years of experience, or educational qualifications.
+2.  For each requirement, check the CV for evidence.
+3.  Calculate the "JD-Match" score as an integer percentage based on this formula: (Number of requirements met / Total number of requirements) * 100.
+4.  List the key requirements from your list in step 1 that are clearly missing from the CV.
+5.  Write a brief, objective "Profile Summary" of the candidate's suitability.
 
-Here is the information to analyze:
+Return your response strictly as a valid JSON object with these exact keys: "JD-Match", "Missing Skills", "Profile Summary".
 
 CV:
 {cv_text}
@@ -91,46 +129,35 @@ JD:
 {jd_text_final}
 """
 
-        # Generate LLM response
-        llm_response = get_llm_response(prompt)
+        # Await the asynchronous LLM call
+        llm_response = await get_llm_response(prompt)
         parsed_llm_response = parse_llm_response(llm_response)
 
         # Store data in MongoDB
-        record = {
-            "employer_id": str(uuid.uuid4()),
+        db = get_db()
+        result_data = {
+            "user_id": current_user["_id"],
+            "user_type": "employee",
             "cv_filename": file.filename,
-            "jd_filename": jd_file.filename if jd_file else None,
             "jd_text": jd_text_final,
-            "cv_text": cv_text,
             "analysis_result": parsed_llm_response,
-            "user_id": str(current_user.get("_id", "")),
-            "created_at": datetime.now()
+            "created_at": datetime.now(),
         }
-
-        try:
-            await db.employee_uploads.insert_one(record)
-        except Exception as e:
-            # Log the database error but continue to return the analysis
-            print(f"Database error: {str(e)}")
+        await db.history.insert_one(result_data)
 
         # Add rate limit information to response
-        response_content = parsed_llm_response.copy()
-        response_content["rate_limit"] = {
+        parsed_llm_response["rate_limit"] = {
             "remaining_requests": remaining_requests,
             "max_requests": MAX_REQUESTS_FREE,
             "reset_after_hours": 24
         }
 
-        return JSONResponse(
-            status_code=200,
-            content=response_content
-        )
+        return JSONResponse(content=parsed_llm_response)
 
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing request: {str(e)}"
-        )
+        return JSONResponse(status_code=500, content={"detail": f"An unexpected error occurred: {str(e)}"})
 
 
 @app.post("/api/employer", response_class=JSONResponse)
@@ -141,52 +168,36 @@ async def process_employer(
     current_user: dict = Depends(get_current_user),
     remaining_requests: int = Depends(check_rate_limit_free_users)
 ):
-    """API endpoint for evaluating multiple CVs against a JD."""
-    # Validate inputs
-    if not jd_text and not jd_file:
-        raise HTTPException(
-            status_code=400,
-            detail="No JD provided. Please provide JD text or JD file."
-        )
-
-    if not candidates or len(candidates) == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No candidate CVs provided."
-        )
-
+    """
+    Process a batch of CVs against a single JD for an authenticated employer.
+    """
     try:
-        # Get database connection
-        db = get_db()
+        # Asynchronously extract text from JD file
+        jd_text_final = ""
+        if jd_file:
+            jd_text_final = await extract_text_from_file(jd_file)
+        elif jd_text:
+            jd_text_final = jd_text
 
-        # Extract JD text
-        jd_text_final = jd_text
-        if not jd_text and jd_file:
-            jd_text_final = extract_text_from_file(jd_file)
+        if not jd_text_final:
+            raise HTTPException(
+                status_code=400, detail="No job description provided.")
 
-        # Process candidates
-        candidate_results = []
-        employer_id = str(uuid.uuid4())  # Same employer ID for all candidates
-
-        for cv_file in candidates:
+        # Helper coroutine to process a single CV
+        async def analyze_candidate(cv_file: UploadFile):
             try:
-                # Extract CV text
-                cv_text = extract_text_from_file(cv_file)
-
-                # Construct LLM prompt
+                cv_text = await extract_text_from_file(cv_file)
                 prompt = f"""
-You are an expert HR consultant with extensive experience evaluating resumes in both technical (e.g., software engineering, data science) and non-technical (e.g., accounting, business analysis) domains. Please analyze the following candidate's CV and job description (JD) and complete these tasks:
+You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
-1. Compare the CV with the JD and determine how well the candidate meets the job requirements.
-2. Calculate a matching score as a percentage (0 to 100), where 100 means a perfect match.
-3. Identify any missing skills or areas for improvement, and list them as an array of concise strings.
-4. Provide a concise profile summary in no more than 30 words.
-5. Return your answer strictly as a valid JSON object with exactly these keys:
-   - "JD-Match": a number (the match percentage; use 0 if no match).
-   - "Missing Skills": an array of strings (empty array if none).
-   - "Profile Summary": a string (maximum 30 words summarizing strengths and overall profile).
+Follow these steps exactly:
+1.  First, break down the JD into a list of 5 to 8 of the most critical, distinct requirements. These can be skills, years of experience, or educational qualifications.
+2.  For each requirement, check the CV for evidence.
+3.  Calculate the "JD-Match" score as an integer percentage based on this formula: (Number of requirements met / Total number of requirements) * 100.
+4.  List the key requirements from your list in step 1 that are clearly missing from the CV.
+5.  Write a brief, objective "Profile Summary" of the candidate's suitability.
 
-Here is the information to analyze:
+Return your response strictly as a valid JSON object with these exact keys: "JD-Match", "Missing Skills", "Profile Summary".
 
 CV:
 {cv_text}
@@ -194,72 +205,60 @@ CV:
 JD:
 {jd_text_final}
 """
-
-                # Generate LLM response
-                llm_response = get_llm_response(prompt)
+                llm_response = await get_llm_response(prompt)
                 parsed_response = parse_llm_response(llm_response)
-
-                # Add to results
-                candidate_result = {
-                    "filename": cv_file.filename,
-                    **parsed_response
-                }
-                candidate_results.append(candidate_result)
-
-                # Store in MongoDB
-                record = {
-                    "employer_id": employer_id,
+                return {
                     "cv_filename": cv_file.filename,
-                    "jd_text": jd_text_final,
-                    "cv_text": cv_text,
-                    "analysis_result": parsed_response,
-                    "user_id": str(current_user.get("_id", "")),
-                    "created_at": datetime.now()
+                    "analysis": parsed_response
+                }
+            except Exception as e:
+                print(f"Failed to process {cv_file.filename}: {e}")
+                return {
+                    "cv_filename": cv_file.filename,
+                    "analysis": {"error": f"Failed to process this CV: {str(e)}"}
                 }
 
-                try:
-                    await db.employer_uploads.insert_one(record)
-                except Exception as e:
-                    # Log the database error but continue processing
-                    print(f"Database error for {cv_file.filename}: {str(e)}")
+        # Create a list of analysis tasks and run them concurrently
+        tasks = [analyze_candidate(cv_file) for cv_file in candidates]
+        all_results = await asyncio.gather(*tasks)
 
-            except Exception as e:
-                # Log the error but continue with other candidates
-                print(f"Error processing {cv_file.filename}: {str(e)}")
-                continue
+        # Sort results by JD-Match score in descending order
+        all_results.sort(
+            key=lambda x: x.get("analysis", {}).get("JD-Match", 0), reverse=True)
 
-        # Sort candidates by match score
-        candidate_results.sort(
-            key=lambda x: (-x["JD-Match"], len(x["Missing Skills"]))
-        )
+        # Store data in MongoDB
+        db = get_db()
+        result_data = {
+            "user_id": current_user["_id"],
+            "user_type": "employer",
+            "jd_text": jd_text_final,
+            "batch_results": all_results,
+            "created_at": datetime.now(),
+        }
+        await db.history.insert_one(result_data)
 
-        # Assign positions
-        for index, result in enumerate(candidate_results):
-            result["Position"] = index + 1
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "employer_id": employer_id,
-                "candidates_count": len(candidate_results),
-                "candidates_results": candidate_results,
+        # Add rate limit information to response
+        final_response = {
+            "ranked_candidates": all_results,
+            "rate_limit": {
                 "remaining_requests": remaining_requests,
-                "maximum_requests": MAX_REQUESTS_FREE,
+                "max_requests": MAX_REQUESTS_FREE,
                 "reset_after_hours": 24
             }
-        )
+        }
 
+        return JSONResponse(content=final_response)
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing request: {str(e)}"
-        )
+        return JSONResponse(status_code=500, content={"detail": f"An unexpected error occurred: {str(e)}"})
 
 
 @app.post("/api/demo", response_class=JSONResponse)
 async def demo(
     file: UploadFile = File(...),
-    jd_file: UploadFile = File(None),
+    jd_file: UploadFile = File(...),
     remaining_requests: int = Depends(check_rate_limit_demo)
 ):
     """Demo API for JD-CV matching with rate limiting"""
@@ -276,27 +275,25 @@ async def demo(
         )
 
     try:
-        # Extract text from uploaded CV
-        cv_text = extract_text_from_file(file)
+        # Extract text from uploaded CV (Async)
+        cv_text = await extract_text_from_file(file)
 
         # Extract text from JD file
 
-        jd_text_final = extract_text_from_file(jd_file)
+        jd_text_final = await extract_text_from_file(jd_file)
 
         # Construct LLM prompt
         prompt = f"""
-You are an expert HR consultant with extensive experience evaluating resumes in both technical (e.g., software engineering, data science) and non-technical (e.g., accounting, business analysis) domains. Please analyze the following candidate's CV and job description (JD) and complete these tasks:
+You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
-1. Compare the CV with the JD and determine how well the candidate meets the job requirements.
-2. Calculate a matching score as a percentage (0 to 100), where 100 means a perfect match.
-3. Identify any missing skills or areas for improvement, and list them as an array of concise strings.
-4. Provide a concise profile summary in no more than 30 words.
-5. Return your answer strictly as a valid JSON object with exactly these keys:
-   - "JD-Match": a number (the match percentage; use 0 if no match).
-   - "Missing Skills": an array of strings (empty array if none).
-   - "Profile Summary": a string (maximum 30 words summarizing strengths and overall profile).
+Follow these steps exactly:
+1.  First, break down the JD into a list of 5 to 8 of the most critical, distinct requirements. These can be skills, years of experience, or educational qualifications.
+2.  For each requirement, check the CV for evidence.
+3.  Calculate the "JD-Match" score as an integer percentage based on this formula: (Number of requirements met / Total number of requirements) * 100.
+4.  List the key requirements from your list in step 1 that are clearly missing from the CV.
+5.  Write a brief, objective "Profile Summary" of the candidate's suitability.
 
-Here is the information to analyze:
+Return your response strictly as a valid JSON object with these exact keys: "JD-Match", "Missing Skills", "Profile Summary".
 
 CV:
 {cv_text}
@@ -306,7 +303,7 @@ JD:
 """
 
         # Generate LLM response
-        llm_response = get_llm_response(prompt)
+        llm_response = await get_llm_response(prompt)
         parsed_llm_response = parse_llm_response(llm_response)
 
         # Add rate limit information to response
@@ -386,8 +383,8 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
 
         if user_type == "employee":
             # Get employee's CV upload history
-            uploads = await db.employee_uploads.find(
-                {"user_id": user_id}
+            uploads = await db.history.find(
+                {"user_id": current_user["_id"]}
             ).sort("created_at", -1).to_list(length=20)
 
             # Convert ObjectId to string for JSON serialization
@@ -411,27 +408,37 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
             )
 
         elif user_type == "employer":
-            # Get unique employer_ids created by this user
-            employer_jobs = await db.employer_uploads.aggregate([
-                {"$match": {"user_id": user_id}},
-                {"$group": {
-                    "_id": "$employer_id",
-                    "jd_text": {"$first": "$jd_text"},
-                    "created_at": {"$first": "$created_at"},
-                    "count": {"$sum": 1}
-                }},
-                {"$sort": {"created_at": -1}},
-                {"$limit": 20}
-            ]).to_list(length=20)
+            employer_jobs = await db.history.find(
+                {"user_id": current_user["_id"]}  # Use the ObjectId directly
+            ).sort("created_at", -1).to_list(length=20)
 
             # Format the results
             formatted_jobs = []
             for job in employer_jobs:
+                batch_results = job.get("batch_results", [])
+                candidate_count = len(batch_results)
+
+                # Create a summary list of candidates with their scores
+                candidates_summary = []
+                for candidate in batch_results:
+                    # Check if 'analysis' exists and is a dictionary before accessing 'JD-Match'
+                    analysis = candidate.get("analysis", {})
+                    if isinstance(analysis, dict):
+                        score = analysis.get("JD-Match")
+                    else:
+                        score = None  # Or some other default value for errors
+
+                    candidates_summary.append({
+                        "cv_filename": candidate.get("cv_filename"),
+                        "score": score
+                    })
+
                 formatted_jobs.append({
-                    "employer_id": job["_id"],
+                    "job_id": str(job["_id"]),
                     "jd_text": job.get("jd_text", "")[:100] + "..." if len(job.get("jd_text", "")) > 100 else job.get("jd_text", ""),
-                    "candidate_count": job["count"],
-                    "created_at": job["created_at"].isoformat()
+                    "candidate_count": candidate_count,
+                    "created_at": job["created_at"].isoformat(),
+                    "candidates": candidates_summary  # Added the candidate summary to the response
                 })
 
             return JSONResponse(
@@ -449,5 +456,3 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error retrieving history: {str(e)}")
-
-
