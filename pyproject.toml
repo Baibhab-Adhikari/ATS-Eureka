@@ -1,0 +1,25 @@
+[project]
+name = "flask-mongo-ats"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "bcrypt>=4.0.1",
+    "email-validator>=2.0.0",
+    "fastapi>=0.103.1",
+    "google-generativeai>=0.3.0",
+    "motor>=3.3.1",
+    "passlib>=1.7.4",
+    "pdfplumber>=0.10.2",
+    "pydantic>=2.3.0",
+    "pyjwt>=2.8.0",
+    "pymongo>=4.5.0",
+    "python-docx>=1.0.1",
+    "python-dotenv>=1.0.0",
+    "python-jose>=3.3.0",
+    "python-multipart>=0.0.6",
+    "redis>=5.0.0",
+    "uuid>=1.30",
+    "uvicorn>=0.23.2",
+]
