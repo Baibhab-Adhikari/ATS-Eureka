@@ -11,18 +11,11 @@ from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from db import get_db
 
 # Password hashing setup
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-# JWT setup
-# SECRET_KEY = os.getenv("SECRET_KEY")
+
 if not SECRET_KEY:
     raise ValueError("No SECRET_KEY environment variable set for JWT")
-
-# ALGORITHM = "HS256"
-# ACCESS_TOKEN_EXPIRE_MINUTES = int(
-#     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-
-# Pydantic models for request validation
 
 
 class EmployerRegistration(BaseModel):
@@ -181,6 +174,8 @@ def add_auth_routes(app: FastAPI):
 
     @app.post("/api/register/employee", response_model=dict)
     async def register_employee(employee: EmployeeRegistration):
+        print(
+            f"Received registration data: {employee.model_dump_json(indent=2)}")
         db = get_db()
         # Check if user already exists
         existing_user = await get_user_by_email(db, employee.email, "employee")
