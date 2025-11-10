@@ -1,9 +1,9 @@
 [project]
 name = "flask-mongo-ats"
 version = "0.1.0"
-description = "Add your description here"
+description = "ATS (JD-CV Matching) Web Application with REStful APIs using FastAPI, Google Gemini 2.5 Flash, MongoDB, Redis"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "bcrypt>=4.0.1",
     "email-validator>=2.0.0",
