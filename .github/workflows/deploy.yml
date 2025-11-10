@@ -38,6 +38,10 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
+      - name: Wait for App Runner service to be ready
+        run: |
+          aws apprunner wait service-running --service-arn ${{ secrets.APP_RUNNER_SERVICE_ARN }}
+
       - name: Trigger App Runner Deployment
         run: |
           aws apprunner start-deployment --service-arn ${{ secrets.APP_RUNNER_SERVICE_ARN }}
