@@ -68,7 +68,7 @@ add_auth_routes(app)
 
 @app.get("/")
 def home():
-    return {"message": "Hello, FastAPI on Heroku!"}
+    return {"message": "Hello, FastAPI on AWS!"}
 
 
 @app.post("/api/employee", response_class=JSONResponse)
