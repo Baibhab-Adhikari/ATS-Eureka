@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import Annotated, Optional
 
 import jwt
-from bson import ObjectId
 from fastapi import Depends, FastAPI, Form, HTTPException, Security, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext  # type: ignore

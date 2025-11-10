@@ -1,8 +1,7 @@
+import asyncio
 from datetime import datetime
 from typing import List
-import asyncio
 
-from dotenv import load_dotenv
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
                      UploadFile)
 from fastapi.exceptions import RequestValidationError
@@ -15,7 +14,6 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      check_rate_limit_free_users, extract_text_from_file,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
-
 
 # Initialize FastAPI app
 app = FastAPI()
