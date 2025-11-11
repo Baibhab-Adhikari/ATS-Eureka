@@ -1,11 +1,11 @@
 // Define API_URL at the global scope
-const API_URL = 'https://ats-eureka-ec04bc99ad36.herokuapp.com/api';
+const API_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is authenticated
     const authToken = localStorage.getItem('authToken');
     const userType = localStorage.getItem('userType');
-    
+
     if (!authToken || userType !== 'employee') {
         // Redirect to signin page if not authenticated as employee
         window.location.href = 'signin.html';
@@ -45,21 +45,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const uploadArea = type === 'jd' ? jdUploadArea : cvUploadArea;
         const fileInfo = type === 'jd' ? jdFileInfo : cvFileInfo;
-        
+
         // Update UI
         uploadArea.querySelector('p').textContent = file.name;
         fileInfo.textContent = `${file.name} (${formatFileSize(file.size)})`;
-        
+
         // Store file reference
         if (type === 'jd') {
             jdFile = file;
         } else {
             cvFile = file;
         }
-        
+
         // Enable analyze button if both files are uploaded
         analyzeBtn.disabled = !(jdFile && cvFile);
-        
+
         return true;
     }
 
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
         area.addEventListener('drop', (e) => {
             e.preventDefault();
             area.classList.remove('drag-over');
-            
+
             const file = e.dataTransfer.files[0];
             const type = area === jdUploadArea ? 'jd' : 'cv';
             handleFileSelect(file, type);
@@ -151,18 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
 // Function to analyze documents
 async function analyzeDocuments(jdFile, cvFile) {
     const formData = new FormData();
-    
+
     // If JD is provided as a file
     if (jdFile) {
         formData.append('jd_file', jdFile);
     }
-    
+
     // CV file is required
     formData.append('file', cvFile);
 
     try {
         const authToken = localStorage.getItem('authToken');
-        
+
         const response = await fetch(`${API_URL}/employee`, {
             method: 'POST',
             headers: {
@@ -170,7 +170,7 @@ async function analyzeDocuments(jdFile, cvFile) {
             },
             body: formData
         });
-        
+
         if (!response.ok) {
             if (response.status === 429) {
                 throw new Error('You have made too many requests. Please wait a moment before trying again.');
@@ -178,7 +178,7 @@ async function analyzeDocuments(jdFile, cvFile) {
             const errorData = await response.json();
             throw new Error(errorData.detail || 'Failed to analyze documents');
         }
-        
+
         const result = await response.json();
         return result;
     } catch (error) {
@@ -192,23 +192,23 @@ function displayResults(result) {
     const resultsSection = document.getElementById('results-section');
     const matchPercentage = document.getElementById('match-percentage');
     const analysisContent = document.getElementById('analysis-content');
-    
+
     // Show results section
     resultsSection.style.display = 'block';
-    
+
     // Set match percentage (using JD-Match from API)
     const matchScore = result['JD-Match'] || 0;
     matchPercentage.textContent = `${matchScore}%`;
-    
+
     // Create analysis content HTML
     let analysisHTML = '';
-    
+
     // Add profile summary
     if (result['Profile Summary']) {
         analysisHTML += `<h4>Profile Summary</h4>`;
         analysisHTML += `<p>${result['Profile Summary']}</p>`;
     }
-    
+
     // Add missing skills
     if (result['Missing Skills'] && result['Missing Skills'].length > 0) {
         analysisHTML += `<h4>Missing Skills</h4>`;
@@ -227,7 +227,7 @@ function displayResults(result) {
     //     analysisHTML += `<p>Resets in: ${result.rate_limit.reset_after_hours} hours</p>`;
     //     analysisHTML += `</div>`;
     // }
-    
+
     // Set analysis content
     analysisContent.innerHTML = analysisHTML;
 }

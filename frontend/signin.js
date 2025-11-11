@@ -26,7 +26,7 @@ toggleBtns.forEach(btn => {
 });
 
 // API URL
-const API_URL = 'https://ats-eureka-ec04bc99ad36.herokuapp.com/api';
+const API_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
 
 // Helper function to store token in localStorage
 function storeAuthToken(token, userType) {
@@ -40,31 +40,31 @@ const employerErrorMessage = document.getElementById('employer-error-message');
 
 employerSigninForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     // Get form data
     const formData = new FormData(employerSigninForm);
-    
+
     // Clear previous error messages
     employerErrorMessage.textContent = '';
-    
+
     try {
         const response = await fetch(`${API_URL}/token`, {
             method: 'POST',
             body: formData
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.detail || 'Authentication failed');
         }
-        
+
         // Store token and redirect based on user type
         storeAuthToken(data.access_token, 'employer');
-        
+
         // Redirect to employer dashboard
         window.location.href = 'employer_home.html';
-        
+
     } catch (error) {
         employerErrorMessage.textContent = error.message;
     }
@@ -76,31 +76,31 @@ const employeeErrorMessage = document.getElementById('employee-error-message');
 
 employeeSigninForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     // Get form data
     const formData = new FormData(employeeSigninForm);
-    
+
     // Clear previous error messages
     employeeErrorMessage.textContent = '';
-    
+
     try {
         const response = await fetch(`${API_URL}/token`, {
             method: 'POST',
             body: formData
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.detail || 'Authentication failed');
         }
-        
+
         // Store token and redirect based on user type
         storeAuthToken(data.access_token, 'employee');
-        
+
         // Redirect to employee dashboard
         window.location.href = 'employee_home.html';
-        
+
     } catch (error) {
         employeeErrorMessage.textContent = error.message;
     }

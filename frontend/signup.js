@@ -26,7 +26,7 @@ toggleBtns.forEach(btn => {
 });
 
 // API URL
-const API_URL = 'https://ats-eureka-ec04bc99ad36.herokuapp.com/api';
+const API_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
 
 // Employer signup form submission
 const employerSignupForm = document.getElementById('employer-signup-form');
@@ -34,22 +34,22 @@ const employerErrorMessage = document.getElementById('employer-error-message');
 
 employerSignupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     // Get form data
     const companyName = document.getElementById('company-name').value;
     const businessEmail = document.getElementById('business-email').value;
     const password = document.getElementById('employer-password').value;
     const confirmPassword = document.getElementById('employer-confirm-password').value;
-    
+
     // Validate passwords match
     if (password !== confirmPassword) {
         employerErrorMessage.textContent = 'Passwords do not match';
         return;
     }
-    
+
     // Clear previous error messages
     employerErrorMessage.textContent = '';
-    
+
     try {
         const response = await fetch(`${API_URL}/register/employer`, {
             method: 'POST',
@@ -63,17 +63,17 @@ employerSignupForm.addEventListener('submit', async (e) => {
                 confirm_password: confirmPassword
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.detail || 'Registration failed');
         }
-        
+
         // Registration successful - redirect to signin
         alert('Registration successful! Please sign in.');
         window.location.href = 'signin.html';
-        
+
     } catch (error) {
         employerErrorMessage.textContent = error.message;
     }
@@ -85,22 +85,22 @@ const employeeErrorMessage = document.getElementById('employee-error-message');
 
 employeeSignupForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     // Get form data
     const fullName = document.getElementById('full-name').value;
     const email = document.getElementById('email').value;
     const password = document.getElementById('employee-password').value;
     const confirmPassword = document.getElementById('employee-confirm-password').value;
-    
+
     // Validate passwords match
     if (password !== confirmPassword) {
         employeeErrorMessage.textContent = 'Passwords do not match';
         return;
     }
-    
+
     // Clear previous error messages
     employeeErrorMessage.textContent = '';
-    
+
     try {
         const response = await fetch(`${API_URL}/register/employee`, {
             method: 'POST',
@@ -114,17 +114,17 @@ employeeSignupForm.addEventListener('submit', async (e) => {
                 confirm_password: confirmPassword
             })
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.detail || 'Registration failed');
         }
-        
+
         // Registration successful - redirect to signin
         alert('Registration successful! Please sign in.');
         window.location.href = 'signin.html';
-        
+
     } catch (error) {
         employeeErrorMessage.textContent = error.message;
     }

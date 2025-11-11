@@ -1,5 +1,5 @@
 // Base URL for API calls
-const BASE_URL = 'https://ats-eureka-ec04bc99ad36.herokuapp.com/api';
+const BASE_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
 
 // File Upload Handling
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const targetId = this.getAttribute('href');
             const targetElement = document.querySelector(targetId);
-            
+
             if (targetElement) {
                 targetElement.scrollIntoView({
                     behavior: 'smooth',
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cvFileInput = document.getElementById('cvFileInput');
     const analyzeButton = document.getElementById('seeScore');
     const trialsLeftSpan = document.getElementById('trialsLeft');
-    
+
     let jdFile = null;
     let cvFile = null;
 
@@ -40,13 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
             cvUploadArea.classList.add('disabled');
             analyzeButton.disabled = true;
             trialsLeftSpan.parentElement.textContent = 'No trials left. Please sign up to continue.';
-            
+
             // Remove event listeners when trials are exhausted
             jdUploadArea.removeEventListener('click', handleJdClick);
             cvUploadArea.removeEventListener('click', handleCvClick);
             jdFileInput.removeEventListener('change', handleJdChange);
             cvFileInput.removeEventListener('change', handleCvChange);
-            
+
             // Remove drag and drop listeners
             [jdUploadArea, cvUploadArea].forEach(area => {
                 area.removeEventListener('dragover', handleDragOver);
@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleDrop(e) {
         e.preventDefault();
         e.currentTarget.classList.remove('drag-over');
-        
+
         if (trialsLeft > 0) {
             const file = e.dataTransfer.files[0];
             const type = e.currentTarget.id === 'jdUploadArea' ? 'jd' : 'cv';
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const result = await response.json();
-            
+
             // Update trials left
             if (result.rate_limit) {
                 trialsLeftSpan.textContent = result.rate_limit.remaining_requests;
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function showResultsModal(result) {
     const modal = document.createElement('div');
     modal.className = 'analysis-modal';
-    
+
     modal.innerHTML = `
         <div class="modal-content">
             <span class="close-button">&times;</span>
@@ -222,10 +222,10 @@ function showResultsModal(result) {
                 <div class="result-card">
                     <h3>Missing Skills</h3>
                     <ul class="skills-list">
-                        ${result['Missing Skills'].length > 0 
-                            ? result['Missing Skills'].map(skill => `<li>${skill}</li>`).join('')
-                            : '<li class="no-skills">No major skill gaps identified</li>'
-                        }
+                        ${result['Missing Skills'].length > 0
+            ? result['Missing Skills'].map(skill => `<li>${skill}</li>`).join('')
+            : '<li class="no-skills">No major skill gaps identified</li>'
+        }
                     </ul>
                 </div>
             </div>
