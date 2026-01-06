@@ -32,7 +32,7 @@ ATS-Eureka is an intelligent Applicant Tracking System that leverages AI to anal
 - **Redis Cloud**: In-memory data store for rate limiting and caching
 - **Google Gemini AI**: Advanced language model for resume analysis
 - **Docker & AWS ECR**: For containerization and cloud-native image storage
-- **Deployment**: Ready for deployment on any container-based platform (e.g., AWS ECS, Fargate, Heroku)
+- **Deployment**: Ready for deployment on any container-based platform (e.g., AWS ECS, Fargate, Heroku, AWS App Runner)
 
 ### Frontend
 
