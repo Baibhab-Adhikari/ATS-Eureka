@@ -26,7 +26,7 @@ toggleBtns.forEach(btn => {
 });
 
 // API URL
-const API_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
+const API_URL = 'https://6yesjwwism.ap-south-1.awsapprunner.com/api';
 
 // Helper function to store token in localStorage
 function storeAuthToken(token, userType) {

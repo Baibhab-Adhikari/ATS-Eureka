@@ -1,5 +1,5 @@
 // Base URL for API calls
-const BASE_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
+const BASE_URL = 'https://6yesjwwism.ap-south-1.awsapprunner.com/api';
 
 // File Upload Handling
 document.addEventListener('DOMContentLoaded', () => {

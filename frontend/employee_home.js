@@ -1,5 +1,5 @@
 // Define API_URL at the global scope
-const API_URL = 'https://z2fgfpnqyx.ap-south-1.awsapprunner.com/api';
+const API_URL = 'https://6yesjwwism.ap-south-1.awsapprunner.com/api';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Check if user is authenticated
