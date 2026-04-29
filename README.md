@@ -83,7 +83,7 @@ REDIS_PASSWORD=your_redis_password
 REDIS_USERNAME=your_redis_username
 ```
 
-5. Run the application
+5. Running the application
 
 ```bash
 uvicorn app:app --reload
