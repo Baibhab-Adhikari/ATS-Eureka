@@ -56,7 +56,7 @@ ATS-Eureka is an intelligent Applicant Tracking System that leverages AI to anal
 ```bash
 git clone https://github.com/yourusername/ATS-Eureka.git
 cd ATS-Eureka
-```
+``` 
 
 2. Create and activate virtual environment
 
@@ -70,7 +70,7 @@ python -m venv venv
 ```bash
 pip install -r requirements.txt
 ```
-
+   
 4. Set up environment variables (.env)
 
 ```plaintext
