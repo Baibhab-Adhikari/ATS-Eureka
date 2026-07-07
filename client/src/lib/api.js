@@ -119,7 +119,8 @@ export const getResumes = async (token) => {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to fetch resumes');
   }
-  return response.json();
+  const data = await response.json();
+  return data.map(r => ({ ...r, id: r._id || r.id }));
 };
 
 export const uploadResume = async (file, title, tags, token) => {
@@ -139,7 +140,8 @@ export const uploadResume = async (file, title, tags, token) => {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to upload resume');
   }
-  return response.json();
+  const data = await response.json();
+  return { ...data, id: data._id || data.id };
 };
 
 export const updateResume = async (id, data, token) => {

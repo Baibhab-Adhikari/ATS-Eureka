@@ -69,7 +69,7 @@ const ResumeManager = () => {
       const token = localStorage.getItem('token');
       
       const tagArray = tags.split(',').map(t => t.trim()).filter(t => t);
-      await updateResume(editingResume.id, { title, tags: tagArray }, token);
+      await updateResume(editingResume._id || editingResume.id, { title, tags: tagArray }, token);
       
       toast.success('Resume updated successfully!');
       setIsEditOpen(false);
@@ -89,9 +89,9 @@ const ResumeManager = () => {
     
     try {
       const token = localStorage.getItem('token');
-      await deleteResume(resume.id, token);
+      await deleteResume(resume._id || resume.id, token);
       toast.success('Resume deleted successfully');
-      setResumes(resumes.filter(r => r.id !== resume.id));
+      setResumes(resumes.filter(r => (r._id || r.id) !== (resume._id || resume.id)));
     } catch (error) {
       toast.error(error.message || 'Delete failed');
     }
@@ -100,7 +100,7 @@ const ResumeManager = () => {
   const handleDownload = async (resume) => {
     try {
       const token = localStorage.getItem('token');
-      const blob = await downloadResumeUrl(resume.id, token);
+      const blob = await downloadResumeUrl(resume._id || resume.id, token);
       
       // Create a blob URL and trigger download
       const url = window.URL.createObjectURL(blob);
@@ -170,7 +170,7 @@ const ResumeManager = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredResumes.map(resume => (
               <ResumeCard 
-                key={resume.id}
+                key={resume._id || resume.id}
                 resume={resume}
                 onDownload={handleDownload}
                 onEdit={openEditModal}
