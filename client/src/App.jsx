@@ -9,6 +9,7 @@ import EmployerHome from './pages/EmployerHome'
 import ResumeManager from './pages/ResumeManager'
 import ApplicationTracker from './pages/ApplicationTracker'
 import Profile from './pages/Profile'
+import ResumeTailor from './pages/ResumeTailor'
 import { Toaster } from './components/ui/sonner'
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             <Route path="/employee" element={<EmployeeHome />} />
             <Route path="/employee/profile" element={<Profile />} />
             <Route path="/employee/resumes" element={<ResumeManager />} />
+            <Route path="/employee/tailor" element={<ResumeTailor />} />
             <Route path="/employee/applications" element={<ApplicationTracker />} />
             <Route path="/employer" element={<EmployerHome />} />
             <Route path="/employer/profile" element={<Profile />} />

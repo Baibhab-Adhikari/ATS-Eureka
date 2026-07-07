@@ -263,3 +263,42 @@ export const updateProfile = async (data, token) => {
   }
   return response.json();
 };
+
+export const tailorResume = async (resumeId, jdText, jdFile, token) => {
+  const formData = new FormData();
+  formData.append('resume_id', resumeId);
+  if (jdText) formData.append('jd_text', jdText);
+  if (jdFile) formData.append('jd_file', jdFile);
+
+  const response = await fetch(`${API_URL}/resume/tailor`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to tailor resume');
+  }
+  return response.json();
+};
+
+export const exportResume = async (format, markdownText, token) => {
+  const response = await fetch(`${API_URL}/resume/export`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      format,
+      markdown_text: markdownText
+    })
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to export resume');
+  }
+  return response.blob();
+};

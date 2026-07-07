@@ -63,3 +63,18 @@ class ApplicationModel(BaseModel):
         arbitrary_types_allowed=True,
         json_encoders={ObjectId: str}
     )
+
+class TailorResumeRequest(BaseModel):
+    resume_id: str
+    job_description: str
+
+class TailorResumeResponse(BaseModel):
+    is_compatible: bool
+    compatibility_warning: Optional[str] = None
+    tailored_resume: str
+    changes_summary: List[str]
+    keyword_additions: List[str]
+
+class ExportRequest(BaseModel):
+    format: str
+    markdown_text: str

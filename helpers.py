@@ -87,11 +87,14 @@ def extract_docx_text(file: io.BytesIO) -> str:
     return "\n".join([para.text for para in doc.paragraphs])
 
 
-async def get_llm_response(prompt: str) -> str:
-    """Gets response from LLM asynchronously."""
+async def get_llm_response(prompt: str, gen_config=None) -> str:
+    """Gets response from LLM asynchronously. If gen_config is provided, it overrides the model's default config."""
     try:
         # Using the asynchronous method
-        response = await model.generate_content_async(prompt)
+        if gen_config:
+            response = await model.generate_content_async(prompt, generation_config=gen_config)
+        else:
+            response = await model.generate_content_async(prompt)
         return response.text
     except Exception as e:
         logger.error(f"Error in async LLM call: {e}", exc_info=True)

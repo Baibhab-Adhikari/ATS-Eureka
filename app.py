@@ -2,10 +2,12 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      check_rate_limit_free_users, extract_text_from_file,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
-from models import ResumeModel, ApplicationModel, ProfileUpdateModel
+from models import ResumeModel, ApplicationModel, ProfileUpdateModel, TailorResumeRequest, ExportRequest
+from services import process_resume_tailoring
+from services.export_service import markdown_to_pdf, markdown_to_docx
 from db import get_db  # type: ignore
 from auth import add_auth_routes, get_current_user
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
@@ -481,6 +483,21 @@ async def get_user_profile(current_user: dict = Depends(get_current_user)):
             status_code=500, detail=f"Error retrieving profile: {str(e)}")
 
 
+@app.post("/api/resume/tailor")
+async def tailor_resume_api(
+    resume_id: str = Form(...),
+    jd_text: str = Form(None),
+    jd_file: UploadFile = File(None),
+    current_user: dict = Depends(get_current_user)
+):
+    jd_content = jd_text
+    if jd_file:
+        jd_content = await extract_text_from_file(jd_file)
+        
+    request = TailorResumeRequest(resume_id=resume_id, job_description=jd_content or "")
+    return await process_resume_tailoring(request, str(current_user["_id"]), resume_service)
+
+
 @app.put("/api/profile")
 async def update_user_profile(
     update_data: ProfileUpdateModel,
@@ -587,3 +604,27 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error retrieving history: {str(e)}")
+
+@app.post("/api/resume/export")
+async def export_resume(request: ExportRequest, user_id: str = Depends(get_current_user)):
+    """Export tailored resume to PDF or DOCX."""
+    try:
+        if request.format == 'pdf':
+            pdf_io = markdown_to_pdf(request.markdown_text)
+            return StreamingResponse(
+                pdf_io, 
+                media_type="application/pdf", 
+                headers={"Content-Disposition": "attachment; filename=tailored_resume.pdf"}
+            )
+        elif request.format == 'docx':
+            docx_io = markdown_to_docx(request.markdown_text)
+            return StreamingResponse(
+                docx_io,
+                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                headers={"Content-Disposition": "attachment; filename=tailored_resume.docx"}
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported format")
+    except Exception as e:
+        logger.error(f"Error exporting resume: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to export resume")
