@@ -12,8 +12,6 @@ const Navbar = () => {
       </Link>
       <div className="flex gap-8">
         <Link to="/" className="text-white text-base hover:opacity-80 transition-opacity font-normal">Home</Link>
-        <a href="/#about" className="text-white text-base hover:opacity-80 transition-opacity font-normal">About us</a>
-        <a href="/#contact" className="text-white text-base hover:opacity-80 transition-opacity font-normal">Contact us</a>
         <Link to="/signup" className="text-white text-base hover:opacity-80 transition-opacity font-normal">Signup</Link>
       </div>
     </nav>

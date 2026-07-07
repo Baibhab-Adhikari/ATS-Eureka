@@ -1,3 +1,14 @@
+from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
+                     check_rate_limit_free_users, extract_text_from_file,
+                     get_client_identifier, get_llm_response,
+                     parse_llm_response)
+from db import get_db  # type: ignore
+from auth import add_auth_routes, get_current_user
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
+                     UploadFile)
 import asyncio
 import logging
 import time
@@ -12,21 +23,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
-                     UploadFile)
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-
-from auth import add_auth_routes, get_current_user
-from db import get_db  # type: ignore
-from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
-                     check_rate_limit_free_users, extract_text_from_file,
-                     get_client_identifier, get_llm_response,
-                     parse_llm_response)
 
 # Initialize FastAPI app
 app = FastAPI()
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -34,7 +34,8 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
     formatted_process_time = '{0:.2f}'.format(process_time)
-    logger.info(f"{request.method} {request.url.path} - Status: {response.status_code} - {formatted_process_time}ms")
+    logger.info(
+        f"{request.method} {request.url.path} - Status: {response.status_code} - {formatted_process_time}ms")
     return response
 
 # Add CORS middleware to allow requests from your frontend
@@ -86,8 +87,9 @@ add_auth_routes(app)
 
 
 @app.get("/")
-def home():
-    return {"message": "Hello, FastAPI on AWS!"}
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
 
 
 @app.post("/api/employee", response_class=JSONResponse)
@@ -236,7 +238,8 @@ JD:
                     "analysis": parsed_response
                 }
             except Exception as e:
-                logger.error(f"Failed to process {cv_file.filename}: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to process {cv_file.filename}: {e}", exc_info=True)
                 return {
                     "cv_filename": cv_file.filename,
                     "analysis": {"error": f"Failed to process this CV: {str(e)}"}

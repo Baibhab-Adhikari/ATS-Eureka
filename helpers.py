@@ -59,7 +59,7 @@ generation_config = {
     "response_mime_type": "application/json",
 }
 model = genai.GenerativeModel(  # type: ignore
-    model_name="gemini-flash-latest", generation_config=generation_config)  # type: ignore
+    model_name="gemini-flash-lite-latest", generation_config=generation_config)  # type: ignore
 
 
 MAX_REQUESTS = 1000  # Maximum number of requests allowed
@@ -121,6 +121,9 @@ def parse_llm_response(llm_response):
         else:
             match_percentage = int((total_earned / total_possible) * 100)
             
+        logger.info(f"LLM Response: {llm_response}")
+        logger.info(f"Calculated JD-Match Score: {match_percentage}%")
+
         return {
             "JD-Match": match_percentage,
             "Missing Skills": response_json.get("Missing Skills", []),
