@@ -1,7 +1,14 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 const Footer = () => {
+  const location = useLocation();
+
+  // Hide footer on dashboard routes
+  if (location.pathname.startsWith('/employee') || location.pathname.startsWith('/employer')) {
+    return null;
+  }
+
   return (
     <footer className="bg-[#030412]/80 backdrop-blur-md pt-20 pb-10 border-t border-white/10 font-montserrat">
       <div className="max-w-6xl mx-auto px-8">
@@ -11,10 +18,6 @@ const Footer = () => {
             <span>ATS-Eureka</span>
           </div>
           <div className="flex gap-16">
-            <div className="flex flex-col gap-4">
-              <a href="/#about" className="text-white/80 hover:text-white transition-colors">About us</a>
-              <a href="/#contact" className="text-white/80 hover:text-white transition-colors">Contact us</a>
-            </div>
             <div className="flex flex-col gap-4">
               <a href="/#terms" className="text-white/80 hover:text-white transition-colors">Terms and conditions</a>
               <a href="/#privacy" className="text-white/80 hover:text-white transition-colors">Privacy policy</a>

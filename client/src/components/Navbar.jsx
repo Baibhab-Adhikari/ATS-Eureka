@@ -4,6 +4,11 @@ import { Link, useLocation } from 'react-router-dom';
 const Navbar = () => {
   const location = useLocation();
 
+  // Hide navbar on dashboard routes
+  if (location.pathname.startsWith('/employee') || location.pathname.startsWith('/employer')) {
+    return null;
+  }
+
   return (
     <nav className="fixed top-0 left-0 right-0 py-6 px-16 flex justify-between items-center bg-[#030412]/80 backdrop-blur-md z-50 font-montserrat">
       <Link to="/" className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-white hover:opacity-80 transition-opacity">

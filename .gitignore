@@ -41,3 +41,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Local file storage
+uploads/

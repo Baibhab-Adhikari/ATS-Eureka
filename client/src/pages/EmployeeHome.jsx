@@ -1,37 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Search, User, LogOut } from 'lucide-react';
-import { analyzeEmployeeCV } from '../lib/api';
+import { Search, FileText } from 'lucide-react';
+import { analyzeEmployeeCV, getResumes } from '../lib/api';
+import DashboardLayout from '../components/DashboardLayout';
 
 const EmployeeHome = () => {
   const [jdFile, setJdFile] = useState(null);
   const [cvFile, setCvFile] = useState(null);
+  const [selectedResumeId, setSelectedResumeId] = useState('');
+  const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user_type');
-    navigate('/');
-  };
+  useEffect(() => {
+    const fetchResumes = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const data = await getResumes(token);
+          setResumes(Array.isArray(data) ? data : (data.resumes || []));
+        }
+      } catch (err) {
+        console.error('Failed to fetch resumes:', err);
+      }
+    };
+    fetchResumes();
+  }, []);
 
   const handleFileChange = (e, setFile) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      if (setFile === setCvFile) setSelectedResumeId(''); // Reset dropdown if file selected
     }
   };
 
+  const handleResumeSelect = (e) => {
+    setSelectedResumeId(e.target.value);
+    if (e.target.value) setCvFile(null); // Reset file if dropdown selected
+  };
+
   const handleAnalyze = async () => {
-    if (!jdFile || !cvFile) return;
+    if (!jdFile || (!cvFile && !selectedResumeId)) return;
     
     setLoading(true);
     setError('');
     
     try {
       const token = localStorage.getItem('token');
-      const data = await analyzeEmployeeCV(cvFile, null, jdFile, token);
+      const data = await analyzeEmployeeCV(cvFile, selectedResumeId, null, jdFile, token);
       setResults(data);
     } catch (err) {
       setError(err.message || 'Analysis failed');
@@ -41,41 +59,7 @@ const EmployeeHome = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#030412] font-montserrat text-white bg-custom-radial bg-cover">
-      {/* Sidebar */}
-      <aside className="w-20 bg-white/5 border-r border-white/10 flex flex-col items-center py-8 gap-12 fixed h-full z-20 backdrop-blur-md">
-        <a href="/" className="mb-4 hover:scale-105 transition-transform">
-          <img src="/assets/images/briefcase-search.svg" alt="Logo" className="w-10 h-10" />
-        </a>
-        <div className="flex flex-col gap-8 w-full items-center">
-          <div className="p-3 bg-white/10 rounded-xl text-white cursor-pointer hover:bg-white/20 transition-colors">
-            <Home className="w-6 h-6" />
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="ml-20 flex-1 flex flex-col relative min-h-screen">
-        {/* Header */}
-        <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center bg-white/5 rounded-full px-6 py-3 border border-white/10 w-96">
-            <input 
-              type="text" 
-              placeholder="Search your preferred job role" 
-              className="bg-transparent border-none outline-none text-white w-full placeholder-white/50"
-            />
-            <Search className="w-5 h-5 text-white/50" />
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="w-10 h-10 rounded-full border-2 border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors">
-              <User className="w-5 h-5" />
-            </div>
-            <button onClick={handleLogout} className="text-white/60 hover:text-white transition-colors">
-              <LogOut className="w-6 h-6" />
-            </button>
-          </div>
-        </header>
-
+    <DashboardLayout>
         {/* Content Area */}
         <div className="p-12 max-w-6xl mx-auto w-full">
           <div className="mb-12">
@@ -91,17 +75,39 @@ const EmployeeHome = () => {
               <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange(e, setJdFile)} />
             </label>
 
-            <label className={`block p-12 border-2 border-dashed ${cvFile ? 'border-green-500 bg-green-500/10' : 'border-white/20 bg-white/5'} rounded-3xl cursor-pointer hover:bg-white/10 transition-colors text-center`}>
-              <img src="/assets/images/upload-icon.svg" alt="Upload" className="w-16 h-16 mx-auto mb-4 opacity-80" />
-              <h3 className="text-xl font-semibold mb-2">{cvFile ? cvFile.name : 'Upload Your CV'}</h3>
-              <p className="text-white/50">{cvFile ? 'Click to change file' : 'Drop your CV here or click to browse'}</p>
-              <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange(e, setCvFile)} />
-            </label>
+            <div className="flex flex-col gap-4">
+              <label className={`block p-12 border-2 border-dashed ${cvFile ? 'border-green-500 bg-green-500/10' : 'border-white/20 bg-white/5'} rounded-3xl cursor-pointer hover:bg-white/10 transition-colors text-center`}>
+                <img src="/assets/images/upload-icon.svg" alt="Upload" className="w-16 h-16 mx-auto mb-4 opacity-80" />
+                <h3 className="text-xl font-semibold mb-2">{cvFile ? cvFile.name : 'Upload Your CV'}</h3>
+                <p className="text-white/50">{cvFile ? 'Click to change file' : 'Drop your CV here or click to browse'}</p>
+                <input type="file" className="hidden" accept=".pdf,.doc,.docx" onChange={(e) => handleFileChange(e, setCvFile)} />
+              </label>
+
+              <div className="flex items-center gap-4 my-2">
+                <div className="h-px bg-white/20 flex-1"></div>
+                <span className="text-white/50 text-sm">OR</span>
+                <div className="h-px bg-white/20 flex-1"></div>
+              </div>
+
+              <select 
+                value={selectedResumeId}
+                onChange={handleResumeSelect}
+                style={{ backgroundColor: 'white', color: 'black' }}
+                className="w-full p-4 rounded-xl border-none outline-none focus:ring-2 focus:ring-[#02A4FF]/50"
+              >
+                <option value="">Select an existing resume...</option>
+                {resumes.map(resume => (
+                  <option key={resume._id} value={resume._id}>
+                    {resume.title} ({resume.file_name})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex justify-center mb-16">
             <button 
-              disabled={!jdFile || !cvFile || loading}
+              disabled={!jdFile || (!cvFile && !selectedResumeId) || loading}
               onClick={handleAnalyze}
               className="px-12 py-4 bg-[#4a6fff] hover:bg-[#3b5bdf] disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed rounded-2xl text-xl font-semibold transition-all shadow-lg hover:shadow-[#4a6fff]/30 flex items-center gap-3"
             >
@@ -159,8 +165,7 @@ const EmployeeHome = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+    </DashboardLayout>
   );
 };
 

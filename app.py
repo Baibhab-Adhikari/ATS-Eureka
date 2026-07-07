@@ -2,9 +2,10 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      check_rate_limit_free_users, extract_text_from_file,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
+from models import ResumeModel, ApplicationModel, ProfileUpdateModel
 from db import get_db  # type: ignore
 from auth import add_auth_routes, get_current_user
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
@@ -14,6 +15,10 @@ import logging
 import time
 from datetime import datetime
 from typing import List
+
+from services.storage_service import LocalStorageProvider
+from services.resume_service import ResumeService
+from services.application_service import ApplicationService
 
 # Configure logging
 logging.basicConfig(
@@ -26,6 +31,11 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# Initialize services
+storage_provider = LocalStorageProvider()
+resume_service = ResumeService(storage_provider)
+application_service = ApplicationService()
 
 
 @app.middleware("http")
@@ -85,6 +95,61 @@ add_auth_routes(app)
 
 # API Routes
 
+# Resume Routes
+@app.post("/api/resumes")
+async def create_resume(
+    title: str = Form(...),
+    tags: str = Form(None),
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    tag_list = [t.strip() for t in tags.split(',')] if tags else []
+    return await resume_service.create_resume(str(current_user["_id"]), file, title, tag_list)
+
+@app.get("/api/resumes")
+async def get_resumes(current_user: dict = Depends(get_current_user)):
+    return await resume_service.get_resumes_by_user(str(current_user["_id"]))
+
+@app.get("/api/resumes/{resume_id}")
+async def get_resume(resume_id: str, current_user: dict = Depends(get_current_user)):
+    return await resume_service.get_resume(resume_id, str(current_user["_id"]))
+
+@app.get("/api/resumes/{resume_id}/download")
+async def download_resume(resume_id: str, current_user: dict = Depends(get_current_user)):
+    resume = await resume_service.get_resume(resume_id, str(current_user["_id"]))
+    return FileResponse(path=resume.file_path, filename=resume.file_name, media_type=resume.mime_type)
+
+@app.delete("/api/resumes/{resume_id}")
+async def delete_resume(resume_id: str, current_user: dict = Depends(get_current_user)):
+    await resume_service.delete_resume(resume_id, str(current_user["_id"]))
+    return {"message": "Resume deleted successfully"}
+
+@app.put("/api/resumes/{resume_id}")
+async def update_resume(resume_id: str, update_data: dict, current_user: dict = Depends(get_current_user)):
+    return await resume_service.update_resume(resume_id, str(current_user["_id"]), update_data)
+
+# Application Routes
+@app.post("/api/applications")
+async def create_application(app_data: dict, current_user: dict = Depends(get_current_user)):
+    return await application_service.create_application(str(current_user["_id"]), app_data)
+
+@app.get("/api/applications")
+async def get_applications(current_user: dict = Depends(get_current_user)):
+    return await application_service.get_applications_by_user(str(current_user["_id"]))
+
+@app.get("/api/applications/{app_id}")
+async def get_application(app_id: str, current_user: dict = Depends(get_current_user)):
+    return await application_service.get_application(app_id, str(current_user["_id"]))
+
+@app.put("/api/applications/{app_id}")
+async def update_application(app_id: str, update_data: dict, current_user: dict = Depends(get_current_user)):
+    return await application_service.update_application(app_id, str(current_user["_id"]), update_data)
+
+@app.delete("/api/applications/{app_id}")
+async def delete_application(app_id: str, current_user: dict = Depends(get_current_user)):
+    await application_service.delete_application(app_id, str(current_user["_id"]))
+    return {"message": "Application deleted successfully"}
+
 
 @app.get("/")
 @app.get("/health")
@@ -94,7 +159,8 @@ def health_check():
 
 @app.post("/api/employee", response_class=JSONResponse)
 async def process_employee(
-    file: UploadFile = File(...),
+    file: UploadFile = File(None),
+    resume_id: str = Form(None),
     jd_text: str = Form(None),
     jd_file: UploadFile = File(None),
     current_user: dict = Depends(get_current_user),
@@ -108,15 +174,26 @@ async def process_employee(
             detail="No JD provided. Please provide JD text or JD file."
         )
 
-    if not file:
+    if not file and not resume_id:
         raise HTTPException(
             status_code=400,
-            detail="No CV Provided. Please upload CV file (Docx or PDF)."
+            detail="No CV Provided. Please upload CV file or select an existing resume."
         )
 
     try:
-        # Asynchronously extract text from files
-        cv_text = await extract_text_from_file(file)
+        cv_text = ""
+        cv_filename = ""
+        if resume_id:
+            # Fetch resume text from DB
+            resume = await resume_service.get_resume(resume_id, str(current_user["_id"]))
+            if not resume:
+                raise HTTPException(status_code=404, detail="Resume not found")
+            cv_text = resume.resume_text
+            cv_filename = getattr(resume, "title", "Existing Resume")
+        else:
+            # Asynchronously extract text from files
+            cv_text = await extract_text_from_file(file)
+            cv_filename = file.filename
         jd_text_final = ""
         if jd_file:
             jd_text_final = await extract_text_from_file(jd_file)
@@ -160,7 +237,7 @@ JD:
         result_data = {
             "user_id": current_user["_id"],
             "user_type": "employee",
-            "cv_filename": file.filename,
+            "cv_filename": cv_filename,
             "jd_text": jd_text_final,
             "analysis_result": parsed_llm_response,
             "created_at": datetime.now(),
@@ -179,6 +256,7 @@ JD:
     except HTTPException as e:
         raise e
     except Exception as e:
+        logger.error(f"Error in process_employee: {str(e)}", exc_info=True)
         return JSONResponse(status_code=500, content={"detail": f"An unexpected error occurred: {str(e)}"})
 
 
@@ -378,7 +456,9 @@ async def get_user_profile(current_user: dict = Depends(get_current_user)):
                     "email": current_user.get("email", ""),
                     "user_type": "employee",
                     "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
-                    "is_active": current_user.get("is_active", True)
+                    "is_active": current_user.get("is_active", True),
+                    "skills": current_user.get("skills", ""),
+                    "employment_status": current_user.get("employment_status", "")
                 }
             )
         elif user_type == "employer":
@@ -399,6 +479,26 @@ async def get_user_profile(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error retrieving profile: {str(e)}")
+
+
+@app.put("/api/profile")
+async def update_user_profile(
+    update_data: ProfileUpdateModel,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        db = get_db()
+        update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+        if not update_dict:
+            return {"message": "No data to update"}
+            
+        await db.users.update_one(
+            {"_id": current_user["_id"]},
+            {"$set": update_dict}
+        )
+        return {"message": "Profile updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating profile: {str(e)}")
 
 
 @app.get("/api/profile/history", response_class=JSONResponse)

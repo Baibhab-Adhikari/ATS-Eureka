@@ -6,6 +6,9 @@ import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import EmployeeHome from './pages/EmployeeHome'
 import EmployerHome from './pages/EmployerHome'
+import ResumeManager from './pages/ResumeManager'
+import ApplicationTracker from './pages/ApplicationTracker'
+import Profile from './pages/Profile'
 import { Toaster } from './components/ui/sonner'
 
 function App() {
@@ -19,7 +22,11 @@ function App() {
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/employee" element={<EmployeeHome />} />
+            <Route path="/employee/profile" element={<Profile />} />
+            <Route path="/employee/resumes" element={<ResumeManager />} />
+            <Route path="/employee/applications" element={<ApplicationTracker />} />
             <Route path="/employer" element={<EmployerHome />} />
+            <Route path="/employer/profile" element={<Profile />} />
           </Routes>
         </main>
         <Footer />
