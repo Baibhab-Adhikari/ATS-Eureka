@@ -1,6 +1,16 @@
 import asyncio
+import logging
+import time
 from datetime import datetime
 from typing import List
+
+# Configure logging
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
                      UploadFile)
@@ -17,6 +27,15 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
 
 # Initialize FastAPI app
 app = FastAPI()
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000
+    formatted_process_time = '{0:.2f}'.format(process_time)
+    logger.info(f"{request.method} {request.url.path} - Status: {response.status_code} - {formatted_process_time}ms")
+    return response
 
 # Add CORS middleware to allow requests from your frontend
 app.add_middleware(
@@ -111,13 +130,17 @@ async def process_employee(
 You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
 Follow these steps exactly:
-1.  First, break down the JD into a list of 5 to 8 of the most critical, distinct requirements. These can be skills, years of experience, or educational qualifications.
-2.  For each requirement, check the CV for evidence.
-3.  Calculate the "JD-Match" score as an integer percentage based on this formula: (Number of requirements met / Total number of requirements) * 100.
-4.  List the key requirements from your list in step 1 that are clearly missing from the CV.
-5.  Write a brief, objective "Profile Summary" of the candidate's suitability.
+1. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
+2. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
+3. Check the CV for evidence of each requirement.
+4. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
+5. List the key requirements that are clearly missing from the CV.
+6. Write a brief, objective "Profile Summary" of the candidate's suitability.
 
-Return your response strictly as a valid JSON object with these exact keys: "JD-Match", "Missing Skills", "Profile Summary".
+Return your response STRICTLY as a valid JSON object with these exact keys:
+- "Evaluation": A list of objects, each with keys "requirement" (string), "critical" (boolean), "score" (integer 0-5).
+- "Missing Skills": A list of strings.
+- "Profile Summary": A string.
 
 CV:
 {cv_text}
@@ -188,13 +211,17 @@ async def process_employer(
 You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
 Follow these steps exactly:
-1.  First, break down the JD into a list of 5 to 8 of the most critical, distinct requirements. These can be skills, years of experience, or educational qualifications.
-2.  For each requirement, check the CV for evidence.
-3.  Calculate the "JD-Match" score as an integer percentage based on this formula: (Number of requirements met / Total number of requirements) * 100.
-4.  List the key requirements from your list in step 1 that are clearly missing from the CV.
-5.  Write a brief, objective "Profile Summary" of the candidate's suitability.
+1. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
+2. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
+3. Check the CV for evidence of each requirement.
+4. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
+5. List the key requirements that are clearly missing from the CV.
+6. Write a brief, objective "Profile Summary" of the candidate's suitability.
 
-Return your response strictly as a valid JSON object with these exact keys: "JD-Match", "Missing Skills", "Profile Summary".
+Return your response STRICTLY as a valid JSON object with these exact keys:
+- "Evaluation": A list of objects, each with keys "requirement" (string), "critical" (boolean), "score" (integer 0-5).
+- "Missing Skills": A list of strings.
+- "Profile Summary": A string.
 
 CV:
 {cv_text}
@@ -209,7 +236,7 @@ JD:
                     "analysis": parsed_response
                 }
             except Exception as e:
-                print(f"Failed to process {cv_file.filename}: {e}")
+                logger.error(f"Failed to process {cv_file.filename}: {e}", exc_info=True)
                 return {
                     "cv_filename": cv_file.filename,
                     "analysis": {"error": f"Failed to process this CV: {str(e)}"}
@@ -284,13 +311,17 @@ async def demo(
 You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
 Follow these steps exactly:
-1.  First, break down the JD into a list of 5 to 8 of the most critical, distinct requirements. These can be skills, years of experience, or educational qualifications.
-2.  For each requirement, check the CV for evidence.
-3.  Calculate the "JD-Match" score as an integer percentage based on this formula: (Number of requirements met / Total number of requirements) * 100.
-4.  List the key requirements from your list in step 1 that are clearly missing from the CV.
-5.  Write a brief, objective "Profile Summary" of the candidate's suitability.
+1. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
+2. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
+3. Check the CV for evidence of each requirement.
+4. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
+5. List the key requirements that are clearly missing from the CV.
+6. Write a brief, objective "Profile Summary" of the candidate's suitability.
 
-Return your response strictly as a valid JSON object with these exact keys: "JD-Match", "Missing Skills", "Profile Summary".
+Return your response STRICTLY as a valid JSON object with these exact keys:
+- "Evaluation": A list of objects, each with keys "requirement" (string), "critical" (boolean), "score" (integer 0-5).
+- "Missing Skills": A list of strings.
+- "Profile Summary": A string.
 
 CV:
 {cv_text}

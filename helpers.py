@@ -1,6 +1,9 @@
 import io
 import json
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 import time
 
 import docx
@@ -35,13 +38,22 @@ generation_config = {
     "response_schema": content.Schema(
         type=content.Type.OBJECT,
         properties={
-            "JD-Match": content.Schema(type=content.Type.INTEGER),
+            "Evaluation": content.Schema(
+                type=content.Type.ARRAY,
+                items=content.Schema(
+                    type=content.Type.OBJECT,
+                    properties={
+                        "requirement": content.Schema(type=content.Type.STRING),
+                        "critical": content.Schema(type=content.Type.BOOLEAN),
+                        "score": content.Schema(type=content.Type.INTEGER),
+                    }
+                )
+            ),
             "Missing Skills": content.Schema(
                 type=content.Type.ARRAY,
                 items=content.Schema(type=content.Type.STRING),
             ),
             "Profile Summary": content.Schema(type=content.Type.STRING),
-            "Position": content.Schema(type=content.Type.INTEGER),
         },
     ),
     "response_mime_type": "application/json",
@@ -82,17 +94,35 @@ async def get_llm_response(prompt: str) -> str:
         response = await model.generate_content_async(prompt)
         return response.text
     except Exception as e:
-        print(f"Error in async LLM call: {e}")
+        logger.error(f"Error in async LLM call: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Error generating response from LLM")
 
 
 def parse_llm_response(llm_response):
-    """Parses LLM response into structured JSON."""
+    """Parses LLM response into structured JSON and calculates the final score."""
     try:
         response_json = json.loads(llm_response)
+        
+        evaluation = response_json.get("Evaluation", [])
+        total_possible = 0
+        total_earned = 0
+        
+        for item in evaluation:
+            # Critical = weight 2, Optional = weight 1
+            weight = 2 if item.get("critical", False) else 1
+            score = item.get("score", 0)
+            
+            total_possible += (5 * weight)
+            total_earned += (score * weight)
+            
+        if total_possible == 0:
+            match_percentage = 0
+        else:
+            match_percentage = int((total_earned / total_possible) * 100)
+            
         return {
-            "JD-Match": response_json.get("JD-Match", 0),
+            "JD-Match": match_percentage,
             "Missing Skills": response_json.get("Missing Skills", []),
             "Profile Summary": response_json.get("Profile Summary", ""),
         }
