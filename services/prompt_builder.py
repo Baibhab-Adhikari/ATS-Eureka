@@ -21,3 +21,26 @@ ORIGINAL RESUME:
 TARGET JOB DESCRIPTION:
 {jd_text}
 """
+
+def build_interview_prep_prompt(resume_text: str, jd_text: str) -> str:
+    return f"""
+You are an expert technical recruiter and hiring manager. Your task is to generate 
+a comprehensive set of interview questions for a candidate based on their Resume and the Job Description.
+
+Create exactly 9 to 12 highly tailored questions, distributed evenly across three categories:
+1. Project-based: Specific to the candidate's past projects, probing their role and technical depth.
+2. Behavioral: Standard behavioral questions (e.g. STAR method) tailored to the role's seniority.
+3. Scenario-based: Hypothetical problems directly related to the Job Description's requirements.
+
+For each question, provide:
+- category: 'Project', 'Behavioral', or 'Scenario'.
+- difficulty: 'Easy', 'Medium', or 'Hard'.
+- question: The interview question text.
+- suggested_answer: Key points or a suggested structure for the best possible answer.
+
+=== CANDIDATE RESUME ===
+{resume_text}
+
+=== JOB DESCRIPTION ===
+{jd_text}
+"""

@@ -120,7 +120,8 @@ export const getResumes = async (token) => {
     throw new Error(error.detail || 'Failed to fetch resumes');
   }
   const data = await response.json();
-  return data.map(r => ({ ...r, id: r._id || r.id }));
+  const resumesArray = Array.isArray(data) ? data : (data.resumes || []);
+  return resumesArray.map(r => ({ ...r, id: r._id || r.id }));
 };
 
 export const uploadResume = async (file, title, tags, token) => {
@@ -303,4 +304,26 @@ export const exportResume = async (format, markdownText, token) => {
     throw new Error(error.detail || 'Failed to export resume');
   }
   return response.blob();
+};
+
+export const generateInterviewPrep = async (resumeId, jdText, jdFile, token) => {
+  const formData = new FormData();
+  formData.append('resume_id', resumeId);
+  if (jdText) formData.append('jd_text', jdText);
+  if (jdFile) formData.append('jd_file', jdFile);
+
+  const response = await fetch(`${API_URL}/interview/prep`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to generate interview prep');
+  }
+
+  return response.json();
 };

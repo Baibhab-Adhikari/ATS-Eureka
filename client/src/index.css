@@ -82,7 +82,41 @@
   body {
     @apply bg-[#030412] text-white min-h-screen overflow-x-hidden font-sans;
   }
+  html.border-grid {
+    @apply border-white/5;
+  }
   html {
     @apply font-sans;
   }
+}
+
+.markdown-body h1 {
+  @apply text-2xl font-bold mb-4 mt-6 text-white;
+}
+.markdown-body h2 {
+  @apply text-xl font-semibold mb-3 mt-5 text-white/90 border-b border-white/10 pb-2;
+}
+.markdown-body h3 {
+  @apply text-lg font-medium mb-2 mt-4 text-white/80;
+}
+.markdown-body p {
+  @apply mb-4 leading-relaxed text-white/70;
+}
+.markdown-body ul {
+  @apply list-disc list-inside mb-4 space-y-1 text-white/70;
+}
+.markdown-body ol {
+  @apply list-decimal list-inside mb-4 space-y-1 text-white/70;
+}
+.markdown-body li {
+  @apply ml-4;
+}
+.markdown-body strong {
+  @apply font-semibold text-white;
+}
+.markdown-body em {
+  @apply italic;
+}
+.markdown-body a {
+  @apply text-[#02A4FF] hover:underline;
 }

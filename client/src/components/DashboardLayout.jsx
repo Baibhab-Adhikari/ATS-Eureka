@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Home, User, LogOut, FileText, Briefcase, Wand2 } from 'lucide-react';
+import { Home, User, LogOut, FileText, Briefcase, Wand2, MessageSquare } from 'lucide-react';
 
 const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
@@ -33,6 +33,9 @@ const DashboardLayout = ({ children }) => {
           </Link>
           <Link to="/employee/tailor" className={`p-3 rounded-xl cursor-pointer transition-colors ${isActive('/employee/tailor') ? 'bg-white/20 text-white' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`} title="AI Resume Tailor">
             <Wand2 className="w-6 h-6" />
+          </Link>
+          <Link to="/employee/interview" className={`p-3 rounded-xl cursor-pointer transition-colors ${isActive('/employee/interview') ? 'bg-white/20 text-white' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'}`} title="Interview Prep">
+            <MessageSquare className="w-6 h-6" />
           </Link>
         </div>
         <div className="flex flex-col gap-6 items-center mt-auto">

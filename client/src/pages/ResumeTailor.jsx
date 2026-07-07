@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Wand2, Download, ArrowRight, CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import ReactMarkdown from 'react-markdown';
 import DashboardLayout from '../components/DashboardLayout';
 import { getResumes, tailorResume, exportResume } from '../lib/api';
 
@@ -235,8 +236,10 @@ const ResumeTailor = () => {
                       {getSelectedResumeText()}
                     </div>
                   ) : (
-                    <div className="flex-1 p-6 bg-[#02A4FF]/5 rounded-xl overflow-y-auto border border-[#02A4FF]/20 text-sm whitespace-pre-wrap font-mono text-white max-h-[600px]">
-                      {result.tailored_resume}
+                    <div className="flex-1 p-6 bg-[#02A4FF]/5 rounded-xl overflow-y-auto border border-[#02A4FF]/20 text-sm text-white max-h-[600px] markdown-body">
+                      <ReactMarkdown>
+                        {result.tailored_resume}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>

@@ -2,8 +2,8 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      check_rate_limit_free_users, extract_text_from_file,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
-from models import ResumeModel, ApplicationModel, ProfileUpdateModel, TailorResumeRequest, ExportRequest
-from services import process_resume_tailoring
+from models import ResumeModel, ApplicationModel, ProfileUpdateModel, TailorResumeRequest, ExportRequest, InterviewPrepRequest
+from services import process_resume_tailoring, interview_service
 from services.export_service import markdown_to_pdf, markdown_to_docx
 from db import get_db  # type: ignore
 from auth import add_auth_routes, get_current_user
@@ -628,3 +628,30 @@ async def export_resume(request: ExportRequest, user_id: str = Depends(get_curre
     except Exception as e:
         logger.error(f"Error exporting resume: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to export resume")
+
+@app.post("/api/interview/prep")
+async def generate_interview_prep(
+    resume_id: str = Form(...),
+    jd_text: str = Form(None),
+    jd_file: UploadFile = File(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """Generate tailored interview questions based on Resume and Job Description."""
+    try:
+        # 1. Fetch the user's resume text
+        resume = await resume_service.get_resume(resume_id, str(current_user["_id"]))
+        if not resume:
+            raise HTTPException(status_code=404, detail="Resume not found")
+        
+        # 2. Get JD text
+        if jd_file:
+            jd_text = await extract_text_from_file(jd_file)
+            
+        if not jd_text:
+            raise HTTPException(status_code=400, detail="Either JD text or JD file is required")
+            
+        # 3. Call the interview service
+        return await interview_service.process_interview_prep(resume.resume_text, jd_text)
+    except Exception as e:
+        logger.error(f"Error generating interview prep: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

@@ -78,3 +78,17 @@ class TailorResumeResponse(BaseModel):
 class ExportRequest(BaseModel):
     format: str
     markdown_text: str
+
+class InterviewQuestion(BaseModel):
+    category: str
+    difficulty: str
+    question: str
+    suggested_answer: str
+
+class InterviewPrepRequest(BaseModel):
+    resume_id: str
+    jd_text: Optional[str] = None
+    jd_file: Optional[str] = None
+
+class InterviewPrepResponse(BaseModel):
+    questions: List[InterviewQuestion]
