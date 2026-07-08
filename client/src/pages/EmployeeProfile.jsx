@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Briefcase, Code, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import DashboardLayout from '../components/DashboardLayout';
-import { getProfile, updateProfile } from '../lib/api';
+import { getEmployeeProfile, updateEmployeeProfile } from '../lib/api';
 
 const Profile = () => {
   const [profile, setProfile] = useState(null);
@@ -24,7 +21,7 @@ const Profile = () => {
           navigate('/');
           return;
         }
-        const data = await getProfile(token);
+        const data = await getEmployeeProfile(token);
         setProfile(data);
         setFormData({
           full_name: data.full_name || '',
@@ -51,7 +48,7 @@ const Profile = () => {
     setSaving(true);
     try {
       const token = localStorage.getItem('token');
-      await updateProfile(formData, token);
+      await updateEmployeeProfile(formData, token);
       toast.success('Profile updated successfully');
       // Refresh profile data locally
       setProfile(prev => ({ ...prev, ...formData }));
@@ -125,41 +122,37 @@ const Profile = () => {
               </div>
             </div>
 
-            {profile?.user_type === 'employee' && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm text-white/80 ml-1 flex items-center gap-2">
-                    <Briefcase className="w-4 h-4" /> Employment Status
-                  </label>
-                  <select
-                    name="employment_status"
-                    value={formData.employment_status}
-                    onChange={handleChange}
-                    style={{ backgroundColor: 'white', color: 'black' }}
-                    className="w-full px-4 py-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-[#02A4FF]/50"
-                  >
-                    <option value="">Select your status...</option>
-                    <option value="Actively looking">Actively looking</option>
-                    <option value="Open to offers">Open to offers</option>
-                    <option value="Not looking">Not looking</option>
-                  </select>
-                </div>
+            <div className="space-y-2">
+              <label className="text-sm text-white/80 ml-1 flex items-center gap-2">
+                <Briefcase className="w-4 h-4" /> Employment Status
+              </label>
+              <select
+                name="employment_status"
+                value={formData.employment_status}
+                onChange={handleChange}
+                style={{ backgroundColor: 'white', color: 'black' }}
+                className="w-full px-4 py-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-[#02A4FF]/50"
+              >
+                <option value="">Select your status...</option>
+                <option value="Actively looking">Actively looking</option>
+                <option value="Open to offers">Open to offers</option>
+                <option value="Not looking">Not looking</option>
+              </select>
+            </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm text-white/80 ml-1 flex items-center gap-2">
-                    <Code className="w-4 h-4" /> Skills (comma separated)
-                  </label>
-                  <textarea 
-                    name="skills"
-                    value={formData.skills}
-                    onChange={handleChange}
-                    style={{ backgroundColor: 'white', color: 'black' }}
-                    className="w-full px-4 py-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-[#02A4FF]/50 min-h-[100px] resize-y"
-                    placeholder="React, Python, AWS, Docker..."
-                  />
-                </div>
-              </>
-            )}
+            <div className="space-y-2">
+              <label className="text-sm text-white/80 ml-1 flex items-center gap-2">
+                <Code className="w-4 h-4" /> Skills (comma separated)
+              </label>
+              <textarea 
+                name="skills"
+                value={formData.skills}
+                onChange={handleChange}
+                style={{ backgroundColor: 'white', color: 'black' }}
+                className="w-full px-4 py-3 rounded-xl border-none outline-none focus:ring-2 focus:ring-[#02A4FF]/50 min-h-[100px] resize-y"
+                placeholder="React, Python, AWS, Docker..."
+              />
+            </div>
 
             <div className="pt-6 flex justify-end">
               <button 

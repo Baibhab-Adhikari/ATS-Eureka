@@ -252,20 +252,20 @@ export const deleteApplication = async (id, token) => {
   return response.json();
 };
 
-export const getProfile = async (token) => {
-  const response = await fetch(`${API_URL}/profile`, {
+export const getEmployeeProfile = async (token) => {
+  const response = await fetch(`${API_URL}/employee/profile`, {
     method: 'GET',
     headers: { 'Authorization': `Bearer ${token}` }
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || 'Failed to fetch profile');
+    throw new Error(error.detail || 'Failed to fetch employee profile');
   }
   return response.json();
 };
 
-export const updateProfile = async (data, token) => {
-  const response = await fetch(`${API_URL}/profile`, {
+export const updateEmployeeProfile = async (data, token) => {
+  const response = await fetch(`${API_URL}/employee/profile`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -275,7 +275,7 @@ export const updateProfile = async (data, token) => {
   });
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.detail || 'Failed to update profile');
+    throw new Error(error.detail || 'Failed to update employee profile');
   }
   return response.json();
 };
@@ -338,5 +338,175 @@ export const generateInterviewPrep = async (resumeId, jdText, jdFile, token) => 
     throw new Error(error.detail || 'Failed to generate interview prep');
   }
 
+  return response.json();
+};
+
+// --- Employer Module APIs ---
+
+export const getEmployerJds = async (token) => {
+  const response = await fetch(`${API_URL}/employer/jds`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to fetch job descriptions');
+  const data = await response.json();
+  return Array.isArray(data) ? data.map(jd => ({ ...jd, id: jd._id || jd.id })) : [];
+};
+
+export const createEmployerJd = async (data, token) => {
+  const response = await fetch(`${API_URL}/employer/jds`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` 
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create job description');
+  }
+  return response.json();
+};
+
+export const updateEmployerJd = async (id, data, token) => {
+  const response = await fetch(`${API_URL}/employer/jds/${id}`, {
+    method: 'PUT',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` 
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update job description');
+  }
+  return response.json();
+};
+
+export const deleteEmployerJd = async (id, token) => {
+  const response = await fetch(`${API_URL}/employer/jds/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to delete JD');
+  return response.json();
+};
+
+export const parseEmployerJdFile = async (file, token) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch(`${API_URL}/employer/jds/parse`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to parse JD file');
+  }
+  return response.json();
+};
+
+export const runEmployerBatchAnalysis = async (jdId, resumeIds, token) => {
+  const response = await fetch(`${API_URL}/employer/analyze`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` 
+    },
+    body: JSON.stringify({ jd_id: jdId, resume_ids: resumeIds })
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Batch analysis failed');
+  }
+  return response.json();
+};
+
+export const analyzeEmployerBatchFiles = async (jdId, cvFiles, token) => {
+  const formData = new FormData();
+  formData.append('jd_id', jdId);
+  cvFiles.forEach(file => {
+    formData.append('cv_files', file);
+  });
+  
+  const response = await fetch(`${API_URL}/employer/analyze-batch`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Batch analysis failed');
+  }
+  return response.json();
+};
+
+export const getCandidateRankings = async (jdId, token) => {
+  const response = await fetch(`${API_URL}/employer/analysis/${jdId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to fetch candidate rankings');
+  return response.json();
+};
+
+export const updateEmployerCandidateStatus = async (analysisId, status, token) => {
+  const response = await fetch(`${API_URL}/employer/analysis/${analysisId}/status`, {
+    method: 'PUT',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` 
+    },
+    body: JSON.stringify({ status })
+  });
+  if (!response.ok) throw new Error('Failed to update candidate status');
+  return response.json();
+};
+
+export const getCandidateSummary = async (candidateId, token) => {
+  const response = await fetch(`${API_URL}/employer/candidate/${candidateId}/summary`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to fetch candidate summary');
+  return response.json();
+};
+
+export const getEmployerDashboard = async (token) => {
+  const response = await fetch(`${API_URL}/employer/dashboard`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) throw new Error('Failed to fetch employer dashboard data');
+  return response.json();
+};
+
+export const getEmployerProfile = async (token) => {
+  const response = await fetch(`${API_URL}/employer/profile`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to fetch employer profile');
+  }
+  return response.json();
+};
+
+export const updateEmployerProfile = async (data, token) => {
+  const response = await fetch(`${API_URL}/employer/profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update employer profile');
+  }
   return response.json();
 };

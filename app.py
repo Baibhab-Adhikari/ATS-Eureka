@@ -2,9 +2,10 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      check_rate_limit_free_users, extract_text_from_file,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
-from models import ResumeModel, ApplicationModel, ProfileUpdateModel, TailorResumeRequest, ExportRequest, InterviewPrepRequest
+from models import ResumeModel, ApplicationModel, EmployeeProfileUpdateModel, EmployerProfileUpdateModel, TailorResumeRequest, ExportRequest, InterviewPrepRequest
 from services import process_resume_tailoring, interview_service, dashboard_service
 from services.export_service import markdown_to_pdf, markdown_to_docx
+from services.storage_service import LocalStorageProvider
 from db import get_db  # type: ignore
 from auth import add_auth_routes, get_current_user
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
@@ -21,6 +22,11 @@ from typing import List
 from services.storage_service import LocalStorageProvider
 from services.resume_service import ResumeService
 from services.application_service import ApplicationService
+from services.jd_service import JdService
+from services.employer_analysis_service import EmployerAnalysisService
+from services.ranking_service import RankingService
+from services.summary_service import SummaryService
+from services.hr_dashboard_service import HrDashboardService
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +44,11 @@ app = FastAPI()
 storage_provider = LocalStorageProvider()
 resume_service = ResumeService(storage_provider)
 application_service = ApplicationService()
+jd_service = JdService()
+employer_analysis_service = EmployerAnalysisService()
+ranking_service = RankingService()
+summary_service = SummaryService()
+hr_dashboard_service = HrDashboardService()
 
 
 @app.middleware("http")
@@ -457,49 +468,52 @@ JD:
 
 # Profile API endpoints
 
-@app.get("/api/profile", response_class=JSONResponse)
-async def get_user_profile(current_user: dict = Depends(get_current_user)):
-    """
-    Get the profile details of the currently authenticated user (employee or employer).
-    Returns different fields based on the user type.
-    """
+@app.get("/api/employee/profile", response_class=JSONResponse)
+async def get_employee_profile(current_user: dict = Depends(get_current_user)):
+    """Get the profile details of the employee."""
     try:
-        # Get the user type and create a sanitized response
-        user_type = current_user.get("user_type")
-
-        if user_type == "employee":
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "user_id": str(current_user.get("_id", "")),
-                    "full_name": current_user.get("full_name", ""),
-                    "email": current_user.get("email", ""),
-                    "user_type": "employee",
-                    "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
-                    "is_active": current_user.get("is_active", True),
-                    "skills": current_user.get("skills", ""),
-                    "employment_status": current_user.get("employment_status", "")
-                }
-            )
-        elif user_type == "employer":
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "user_id": str(current_user.get("_id", "")),
-                    "company_name": current_user.get("company_name", ""),
-                    "email": current_user.get("email", ""),
-                    "user_type": "employer",
-                    "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
-                    "is_active": current_user.get("is_active", True)
-                }
-            )
-        else:
-            raise HTTPException(status_code=400, detail="Invalid user type")
-
+        if current_user.get("user_type") != "employee":
+            raise HTTPException(status_code=403, detail="Forbidden")
+            
+        return JSONResponse(
+            status_code=200,
+            content={
+                "user_id": str(current_user.get("_id", "")),
+                "full_name": current_user.get("full_name", ""),
+                "email": current_user.get("email", ""),
+                "user_type": "employee",
+                "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
+                "is_active": current_user.get("is_active", True),
+                "skills": current_user.get("skills", ""),
+                "employment_status": current_user.get("employment_status", "")
+            }
+        )
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error retrieving profile: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving profile: {str(e)}")
 
+@app.get("/api/employer/profile", response_class=JSONResponse)
+async def get_employer_profile(current_user: dict = Depends(get_current_user)):
+    """Get the profile details of the employer."""
+    try:
+        if current_user.get("user_type") != "employer":
+            raise HTTPException(status_code=403, detail="Forbidden")
+            
+        return JSONResponse(
+            status_code=200,
+            content={
+                "user_id": str(current_user.get("_id", "")),
+                "full_name": current_user.get("full_name", ""),
+                "company_name": current_user.get("company_name", ""),
+                "company_address": current_user.get("company_address", ""),
+                "about_company": current_user.get("about_company", ""),
+                "email": current_user.get("email", ""),
+                "user_type": "employer",
+                "created_at": current_user.get("created_at", "").isoformat() if isinstance(current_user.get("created_at"), datetime) else str(current_user.get("created_at", "")),
+                "is_active": current_user.get("is_active", True)
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving profile: {str(e)}")
 
 @app.post("/api/resume/tailor")
 async def tailor_resume_api(
@@ -516,12 +530,15 @@ async def tailor_resume_api(
     return await process_resume_tailoring(request, str(current_user["_id"]), resume_service)
 
 
-@app.put("/api/profile")
-async def update_user_profile(
-    update_data: ProfileUpdateModel,
+@app.put("/api/employee/profile")
+async def update_employee_profile(
+    update_data: EmployeeProfileUpdateModel,
     current_user: dict = Depends(get_current_user)
 ):
     try:
+        if current_user.get("user_type") != "employee":
+            raise HTTPException(status_code=403, detail="Forbidden")
+            
         db = get_db()
         update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
         if not update_dict:
@@ -531,9 +548,33 @@ async def update_user_profile(
             {"_id": current_user["_id"]},
             {"$set": update_dict}
         )
-        return {"message": "Profile updated successfully"}
+        return {"message": "Employee profile updated successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error updating profile: {str(e)}")
+
+
+@app.put("/api/employer/profile")
+async def update_employer_profile(
+    update_data: EmployerProfileUpdateModel,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        if current_user.get("user_type") != "employer":
+            raise HTTPException(status_code=403, detail="Forbidden")
+            
+        db = get_db()
+        update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+        if not update_dict:
+            return {"message": "No data to update"}
+            
+        await db.users.update_one(
+            {"_id": current_user["_id"]},
+            {"$set": update_dict}
+        )
+        return {"message": "Employer profile updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating profile: {str(e)}")
+
 
 
 @app.get("/api/profile/history", response_class=JSONResponse)
@@ -673,3 +714,137 @@ async def generate_interview_prep(
     except Exception as e:
         logger.error(f"Error generating interview prep: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+# Employer Module Routes
+
+@app.post("/api/employer/jds")
+async def create_jd(jd_data: dict, current_user: dict = Depends(get_current_user)):
+    return await jd_service.create_jd(str(current_user["_id"]), jd_data)
+
+@app.get("/api/employer/jds")
+async def get_jds(current_user: dict = Depends(get_current_user)):
+    return await jd_service.get_jds_by_user(str(current_user["_id"]))
+
+@app.get("/api/employer/jds/{jd_id}")
+async def get_jd(jd_id: str, current_user: dict = Depends(get_current_user)):
+    return await jd_service.get_jd(jd_id, str(current_user["_id"]))
+
+@app.put("/api/employer/jds/{jd_id}")
+async def update_employer_jd(jd_id: str, update_data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user.get("user_type") != "employer":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return await jd_service.update_jd(jd_id, str(current_user["_id"]), update_data)
+
+@app.post("/api/employer/jds/parse")
+async def parse_employer_jd_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("user_type") != "employer":
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    extracted_text = await extract_text_from_file(file)
+    parsed_data = await jd_service.parse_jd_from_text(extracted_text)
+    
+    # Save the JD file to local storage permanently
+    try:
+        jd_storage = LocalStorageProvider(base_dir="uploads/jds")
+        await file.seek(0)
+        import uuid
+        ext = file.filename.split('.')[-1]
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        file_path = await jd_storage.save(file.file, unique_filename)
+        # We can add this file path to the parsed data so the frontend can store it
+        parsed_data["file_path"] = file_path
+    except Exception as e:
+        logger.error(f"Failed to save JD file: {str(e)}")
+
+    return parsed_data
+
+
+@app.delete("/api/employer/jds/{jd_id}")
+async def delete_jd(jd_id: str, current_user: dict = Depends(get_current_user)):
+    return await jd_service.delete_jd(jd_id, str(current_user["_id"]))
+
+@app.post("/api/employer/analyze-batch")
+async def batch_analyze_files(
+    jd_id: str = Form(...),
+    cv_files: List[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("user_type") != "employer":
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    user_id = str(current_user["_id"])
+    
+    # 1. Save all CV files permanently
+    resume_ids = []
+    for file in cv_files:
+        try:
+            # We pass file, title=filename, tags=["Employer Upload"]
+            resume = await resume_service.create_resume(user_id, file, file.filename, ["Employer Upload"])
+            resume_ids.append(resume.id)
+        except Exception as e:
+            logger.error(f"Failed to save CV {file.filename}: {str(e)}")
+            continue
+            
+    if not resume_ids:
+        raise HTTPException(status_code=400, detail="Failed to upload any CVs")
+        
+    # 2. Run batch analysis
+    results = await employer_analysis_service.analyze_batch(user_id, jd_id, resume_ids)
+    
+    # Return rankings
+    return await ranking_service.get_candidates_for_jd(jd_id, user_id)
+
+@app.post("/api/employer/analyze")
+async def batch_analyze(
+    payload: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    jd_id = payload.get("jd_id")
+    resume_ids = payload.get("resume_ids", [])
+    if not jd_id or not resume_ids:
+        raise HTTPException(status_code=400, detail="jd_id and resume_ids are required")
+    return await employer_analysis_service.analyze_batch(str(current_user["_id"]), jd_id, resume_ids)
+
+@app.get("/api/employer/analysis/{jd_id}")
+async def get_ranked_candidates(jd_id: str, current_user: dict = Depends(get_current_user)):
+    return await ranking_service.get_candidates_for_jd(jd_id, str(current_user["_id"]))
+
+@app.put("/api/employer/analysis/{analysis_id}/status")
+async def update_analysis_status(
+    analysis_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("user_type") != "employer":
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
+    new_status = payload.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="status is required")
+        
+    db = get_db()
+    from bson import ObjectId
+    try:
+        result = await db.employer_analyses.update_one(
+            {"_id": ObjectId(analysis_id), "user_id": str(current_user["_id"])},
+            {"$set": {"status": new_status, "updated_at": __import__("datetime").datetime.utcnow()}}
+        )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+            
+        logger.info(f"Updated status of analysis {analysis_id} to {new_status}")
+        return {"success": True, "status": new_status}
+    except Exception as e:
+        logger.error(f"Error updating analysis status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update status")
+
+@app.get("/api/employer/candidate/{candidate_id}/summary")
+async def get_candidate_summary(candidate_id: str, current_user: dict = Depends(get_current_user)):
+    return await summary_service.generate_resume_summary(candidate_id, str(current_user["_id"]))
+
+@app.get("/api/employer/dashboard")
+async def get_employer_dashboard(current_user: dict = Depends(get_current_user)):
+    return await hr_dashboard_service.get_dashboard_data(str(current_user["_id"]))

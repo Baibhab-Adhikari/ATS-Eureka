@@ -1,6 +1,5 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ThemeToggle } from './ThemeToggle';
 
 const Navbar = () => {
   const location = useLocation();
@@ -19,7 +18,6 @@ const Navbar = () => {
       <div className="flex items-center gap-8">
         <Link to="/" className="dark:text-white text-gray-900 text-base hover:opacity-80 transition-opacity font-normal">Home</Link>
         <Link to="/signup" className="dark:text-white text-gray-900 text-base hover:opacity-80 transition-opacity font-normal">Signup</Link>
-        <ThemeToggle />
       </div>
     </nav>
   );

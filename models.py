@@ -36,11 +36,16 @@ class ResumeModel(BaseModel):
         json_encoders={ObjectId: str}
     )
 
-class ProfileUpdateModel(BaseModel):
+class EmployeeProfileUpdateModel(BaseModel):
     full_name: Optional[str] = None
-    company_name: Optional[str] = None
     skills: Optional[str] = None
     employment_status: Optional[str] = None
+
+class EmployerProfileUpdateModel(BaseModel):
+    full_name: Optional[str] = None
+    company_name: Optional[str] = None
+    company_address: Optional[str] = None
+    about_company: Optional[str] = None
 
 class ApplicationModel(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
@@ -92,3 +97,45 @@ class InterviewPrepRequest(BaseModel):
 
 class InterviewPrepResponse(BaseModel):
     questions: List[InterviewQuestion]
+
+class JobDescriptionModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    user_id: PyObjectId
+    title: str
+    department: Optional[str] = None
+    employment_type: Optional[str] = None
+    location: Optional[str] = None
+    experience_required: Optional[str] = None
+    salary_range: Optional[str] = None
+    required_skills: List[str] = Field(default_factory=list)
+    preferred_skills: List[str] = Field(default_factory=list)
+    full_description: str
+    status: str = "Open" # Draft, Open, Closed
+    file_path: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
+
+class EmployerAnalysisModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    user_id: PyObjectId
+    jd_id: PyObjectId
+    resume_id: PyObjectId
+    candidate_name: str
+    resume_summary: Optional[str] = None
+    ats_score: int
+    analysis_result: dict
+    status: str = "Analyzed" # Analyzed, Shortlisted, Interviewing, Offered, Rejected
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str}
+    )
