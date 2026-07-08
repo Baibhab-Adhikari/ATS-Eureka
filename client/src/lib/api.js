@@ -109,6 +109,19 @@ export const analyzeEmployerBatch = async (jdText, jdFile, candidates, token) =>
 
 // --- Resume Manager APIs ---
 
+export const getDashboardData = async (token) => {
+  const response = await fetch(`${API_URL}/dashboard`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to fetch dashboard data');
+  }
+  return response.json();
+};
+
 export const getResumes = async (token) => {
   const response = await fetch(`${API_URL}/resumes`, {
     headers: {

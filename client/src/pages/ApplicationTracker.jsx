@@ -12,10 +12,10 @@ const STATUS_COLUMNS = ["Wishlist", "Applied", "Interview Scheduled", "Offered",
 const DroppableColumn = ({ id, title, applications, onEdit, onDelete }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
-    <div ref={setNodeRef} className={`flex-1 min-w-[280px] border rounded-2xl p-4 flex flex-col transition-colors ${isOver ? 'bg-white/10 border-[#4a6fff]' : 'bg-white/5 border-white/10'}`}>
+    <div ref={setNodeRef} className={`flex-1 min-w-[280px] border rounded-2xl p-4 flex flex-col transition-colors shadow-sm ${isOver ? 'dark:bg-white/10 bg-blue-50/50 border-[#4a6fff]' : 'dark:bg-white/5 bg-white border-gray-200 dark:border-white/10'}`}>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-white font-medium">{title}</h3>
-        <span className="bg-white/10 text-white/70 px-2 py-0.5 rounded-full text-xs">
+        <h3 className="dark:text-white text-gray-900 font-medium">{title}</h3>
+        <span className="dark:bg-white/10 bg-gray-100 dark:text-white/70 text-gray-600 px-2 py-0.5 rounded-full text-xs">
           {applications.length}
         </span>
       </div>
@@ -29,7 +29,7 @@ const DroppableColumn = ({ id, title, applications, onEdit, onDelete }) => {
           />
         ))}
         {applications.length === 0 && (
-          <div className="h-full flex items-center justify-center text-white/20 text-sm border-2 border-dashed border-white/5 rounded-xl py-8">
+          <div className="h-full flex items-center justify-center dark:text-white/20 text-gray-400 text-sm border-2 border-dashed dark:border-white/5 border-gray-200 rounded-xl py-8">
             Drop here
           </div>
         )}
@@ -140,14 +140,14 @@ const ApplicationTracker = () => {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 flex flex-col h-full bg-[#030412]">
-        <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-10">
+      <div className="flex-1 flex flex-col h-full dark:bg-[#030412] bg-gray-50">
+        <header className="h-24 px-8 flex items-center justify-between border-b dark:border-white/5 border-gray-200 dark:bg-white/5 bg-white backdrop-blur-md sticky top-0 z-10">
           <div>
-            <h1 className="text-2xl font-semibold text-white flex items-center gap-3">
+            <h1 className="text-2xl font-semibold dark:text-white text-gray-900 flex items-center gap-3">
               <Briefcase className="w-7 h-7 text-[#4a6fff]" />
               Application Tracker
             </h1>
-            <p className="text-white/50 text-sm mt-1">Manage and track your job applications via Kanban board</p>
+            <p className="dark:text-white/50 text-gray-500 text-sm mt-1">Manage and track your job applications via Kanban board</p>
           </div>
           
           <button 

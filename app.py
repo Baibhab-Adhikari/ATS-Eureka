@@ -3,7 +3,7 @@ from helpers import (MAX_REQUESTS, MAX_REQUESTS_FREE, check_rate_limit_demo,
                      get_client_identifier, get_llm_response,
                      parse_llm_response)
 from models import ResumeModel, ApplicationModel, ProfileUpdateModel, TailorResumeRequest, ExportRequest, InterviewPrepRequest
-from services import process_resume_tailoring, interview_service
+from services import process_resume_tailoring, interview_service, dashboard_service
 from services.export_service import markdown_to_pdf, markdown_to_docx
 from db import get_db  # type: ignore
 from auth import add_auth_routes, get_current_user
@@ -135,6 +135,14 @@ async def update_resume(resume_id: str, update_data: dict, current_user: dict = 
 async def create_application(app_data: dict, current_user: dict = Depends(get_current_user)):
     return await application_service.create_application(str(current_user["_id"]), app_data)
 
+@app.get("/api/dashboard")
+async def get_dashboard(current_user: dict = Depends(get_current_user)):
+    try:
+        return await dashboard_service.get_dashboard_data(str(current_user["_id"]))
+    except Exception as e:
+        logger.error(f"Dashboard API Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/applications")
 async def get_applications(current_user: dict = Depends(get_current_user)):
     return await application_service.get_applications_by_user(str(current_user["_id"]))
@@ -211,14 +219,17 @@ async def process_employee(
 You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
 Follow these steps exactly:
-1. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
-2. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
-3. Check the CV for evidence of each requirement.
-4. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
-5. List the key requirements that are clearly missing from the CV.
-6. Write a brief, objective "Profile Summary" of the candidate's suitability.
+1. First, perform a semantic compatibility check. If the candidate's CV has 0% overlap with the core requirements of the JD (e.g., completely different industry and skills), set `is_compatible` to false and provide a concise `compatibility_warning`. Otherwise, set `is_compatible` to true.
+2. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
+3. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
+4. Check the CV for evidence of each requirement.
+5. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
+6. List the key requirements that are clearly missing from the CV.
+7. Write a brief, objective "Profile Summary" of the candidate's suitability.
 
 Return your response STRICTLY as a valid JSON object with these exact keys:
+- "is_compatible": A boolean.
+- "compatibility_warning": A string (empty if compatible).
 - "Evaluation": A list of objects, each with keys "requirement" (string), "critical" (boolean), "score" (integer 0-5).
 - "Missing Skills": A list of strings.
 - "Profile Summary": A string.
@@ -244,6 +255,10 @@ JD:
             "analysis_result": parsed_llm_response,
             "created_at": datetime.now(),
         }
+        if resume_id:
+            from bson import ObjectId
+            result_data["resume_id"] = ObjectId(resume_id)
+            
         await db.history.insert_one(result_data)
 
         # Add rate limit information to response
@@ -293,14 +308,17 @@ async def process_employer(
 You are a highly precise and analytical AI recruitment assistant. Your task is to evaluate a candidate's CV against a job description (JD) with methodical accuracy.
 
 Follow these steps exactly:
-1. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
-2. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
-3. Check the CV for evidence of each requirement.
-4. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
-5. List the key requirements that are clearly missing from the CV.
-6. Write a brief, objective "Profile Summary" of the candidate's suitability.
+1. First, perform a semantic compatibility check. If the candidate's CV has 0% overlap with the core requirements of the JD (e.g., completely different industry and skills), set `is_compatible` to false and provide a concise `compatibility_warning`. Otherwise, set `is_compatible` to true.
+2. Break down the JD into a list of 5 to 8 critical distinct requirements (skills, years of experience, or educational qualifications).
+3. For each requirement, determine if it is a "critical" requirement (must-have) or an "optional" requirement (nice-to-have).
+4. Check the CV for evidence of each requirement.
+5. Score each requirement from 0 to 5 (0 = completely missing, 5 = perfect match).
+6. List the key requirements that are clearly missing from the CV.
+7. Write a brief, objective "Profile Summary" of the candidate's suitability.
 
 Return your response STRICTLY as a valid JSON object with these exact keys:
+- "is_compatible": A boolean.
+- "compatibility_warning": A string (empty if compatible).
 - "Evaluation": A list of objects, each with keys "requirement" (string), "critical" (boolean), "score" (integer 0-5).
 - "Missing Skills": A list of strings.
 - "Profile Summary": A string.

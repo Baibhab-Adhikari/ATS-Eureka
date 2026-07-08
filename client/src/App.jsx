@@ -4,7 +4,8 @@ import Footer from './components/Footer'
 import Home from './pages/Home'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
-import EmployeeHome from './pages/EmployeeHome'
+import AtsAnalysis from './pages/AtsAnalysis'
+import EmployeeDashboard from './pages/EmployeeDashboard'
 import EmployerHome from './pages/EmployerHome'
 import ResumeManager from './pages/ResumeManager'
 import ApplicationTracker from './pages/ApplicationTracker'
@@ -23,7 +24,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
-            <Route path="/employee" element={<EmployeeHome />} />
+            <Route path="/employee" element={<EmployeeDashboard />} />
+            <Route path="/employee/ats" element={<AtsAnalysis />} />
             <Route path="/employee/profile" element={<Profile />} />
             <Route path="/employee/resumes" element={<ResumeManager />} />
             <Route path="/employee/tailor" element={<ResumeTailor />} />

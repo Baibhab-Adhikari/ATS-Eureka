@@ -80,7 +80,7 @@
     outline-color: var(--ring);
   }
   body {
-    @apply bg-[#030412] text-white min-h-screen overflow-x-hidden font-sans;
+    @apply dark:bg-[#030412] bg-gray-50 dark:text-white text-gray-900 min-h-screen overflow-x-hidden font-sans;
   }
   html.border-grid {
     @apply border-white/5;

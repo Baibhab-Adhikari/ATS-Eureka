@@ -34,7 +34,11 @@ const ApplicationCard = ({ application, onEdit, onDelete }) => {
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <button onClick={(e) => { e.stopPropagation(); onEdit(application); }} className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors">
+          <button 
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onEdit(application); }} 
+            className="p-1.5 hover:bg-white/10 rounded-lg text-white/40 hover:text-white transition-colors"
+          >
             <Edit2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -58,6 +62,7 @@ const ApplicationCard = ({ application, onEdit, onDelete }) => {
             href={application.job_link} 
             target="_blank" 
             rel="noopener noreferrer" 
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
             className="text-[#4a6fff] hover:underline flex items-center gap-1"
           >

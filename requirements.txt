@@ -30,3 +30,8 @@ python-dotenv>=1.0.0
 
 # Utilities
 uuid>=1.30
+
+# Export Formats
+markdown>=3.5.0
+xhtml2pdf>=0.2.11
+htmldocx>=0.0.6

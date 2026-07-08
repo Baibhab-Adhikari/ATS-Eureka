@@ -38,6 +38,8 @@ generation_config = {
     "response_schema": content.Schema(
         type=content.Type.OBJECT,
         properties={
+            "is_compatible": content.Schema(type=content.Type.BOOLEAN),
+            "compatibility_warning": content.Schema(type=content.Type.STRING),
             "Evaluation": content.Schema(
                 type=content.Type.ARRAY,
                 items=content.Schema(
@@ -55,6 +57,7 @@ generation_config = {
             ),
             "Profile Summary": content.Schema(type=content.Type.STRING),
         },
+        required=["is_compatible", "compatibility_warning", "Evaluation", "Missing Skills", "Profile Summary"]
     ),
     "response_mime_type": "application/json",
 }
@@ -107,7 +110,7 @@ def parse_llm_response(llm_response):
     try:
         response_json = json.loads(llm_response)
         
-        evaluation = response_json.get("Evaluation", [])
+        evaluation = response_json.get("Evaluation") or []
         total_possible = 0
         total_earned = 0
         
@@ -128,13 +131,17 @@ def parse_llm_response(llm_response):
         logger.info(f"Calculated JD-Match Score: {match_percentage}%")
 
         return {
+            "is_compatible": response_json.get("is_compatible", True),
+            "compatibility_warning": response_json.get("compatibility_warning") or "",
             "JD-Match": match_percentage,
-            "Missing Skills": response_json.get("Missing Skills", []),
-            "Profile Summary": response_json.get("Profile Summary", ""),
+            "Missing Skills": response_json.get("Missing Skills") or [],
+            "Profile Summary": response_json.get("Profile Summary") or "",
         }
     except json.JSONDecodeError:
         # Handle case where LLM response is not valid JSON
         return {
+            "is_compatible": False,
+            "compatibility_warning": "Could not generate analysis due to parsing error.",
             "JD-Match": 0,
             "Missing Skills": ["Error parsing LLM response"],
             "Profile Summary": "Could not generate profile summary due to parsing error.",

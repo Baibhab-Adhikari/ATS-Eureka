@@ -11,6 +11,7 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit, initialData = null }) => 
   const [status, setStatus] = useState('Wishlist');
   const [resumeUsed, setResumeUsed] = useState('');
   const [notes, setNotes] = useState('');
+  const [atsScore, setAtsScore] = useState('');
   const [resumes, setResumes] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -23,6 +24,7 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit, initialData = null }) => 
         setStatus(initialData.status || 'Wishlist');
         setResumeUsed(initialData.resume_used || '');
         setNotes(initialData.notes || '');
+        setAtsScore(initialData.ats_score || '');
       } else {
         setCompany('');
         setJobTitle('');
@@ -30,6 +32,7 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit, initialData = null }) => 
         setStatus('Wishlist');
         setResumeUsed('');
         setNotes('');
+        setAtsScore('');
       }
       fetchResumes();
     }
@@ -55,7 +58,8 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit, initialData = null }) => 
         job_link: jobLink,
         status,
         notes,
-        resume_used: resumeUsed || null
+        resume_used: resumeUsed || null,
+        ats_score: atsScore ? parseInt(atsScore, 10) : null
       };
       await onSubmit(appData);
     } finally {
@@ -150,6 +154,19 @@ const ApplicationModal = ({ isOpen, onClose, onSubmit, initialData = null }) => 
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder-gray-400 outline-none focus:border-[#4a6fff] transition-colors resize-none"
+              style={{ backgroundColor: 'white', color: 'black' }}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">ATS Score (Optional)</label>
+            <input 
+              type="number" 
+              min="0" max="100"
+              value={atsScore}
+              onChange={(e) => setAtsScore(e.target.value)}
+              placeholder="e.g. 85"
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder-gray-400 outline-none focus:border-[#4a6fff] transition-colors"
               style={{ backgroundColor: 'white', color: 'black' }}
             />
           </div>

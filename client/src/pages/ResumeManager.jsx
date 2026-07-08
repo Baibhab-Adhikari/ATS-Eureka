@@ -133,16 +133,16 @@ const ResumeManager = () => {
   return (
     <DashboardLayout>
       {/* Header */}
-      <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-10">
-        <div className="flex items-center bg-white/5 rounded-full px-6 py-3 border border-white/10 w-96 max-w-full">
+      <header className="h-24 px-8 flex items-center justify-between border-b dark:border-white/5 border-gray-200 dark:bg-white/5 bg-white backdrop-blur-md sticky top-0 z-10">
+        <div className="flex items-center dark:bg-white/5 bg-gray-50 rounded-full px-6 py-3 border dark:border-white/10 border-gray-200 w-96 max-w-full shadow-sm">
           <input 
             type="text" 
             placeholder="Search resumes by title or tag..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-transparent border-none outline-none text-white w-full placeholder-white/50"
+            className="bg-transparent border-none outline-none dark:text-white text-gray-900 w-full dark:placeholder-white/50 placeholder-gray-400"
           />
-          <Search className="w-5 h-5 text-white/50 ml-2 flex-shrink-0" />
+          <Search className="w-5 h-5 dark:text-white/50 text-gray-400 ml-2 flex-shrink-0" />
         </div>
       </header>
 
@@ -150,8 +150,8 @@ const ResumeManager = () => {
       <div className="p-8 md:p-12 max-w-7xl mx-auto w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12">
           <div>
-            <h1 className="text-3xl md:text-4xl font-semibold mb-2 md:mb-4 text-white">Resume Manager</h1>
-            <p className="text-base md:text-lg text-white/60">Upload and manage multiple versions of your resume for different roles.</p>
+            <h1 className="text-3xl md:text-4xl font-semibold mb-2 md:mb-4 dark:text-white text-gray-900">Resume Manager</h1>
+            <p className="text-base md:text-lg dark:text-white/60 text-gray-600">Upload and manage multiple versions of your resume for different roles.</p>
           </div>
           <button 
             onClick={() => setIsUploadOpen(true)}
@@ -179,18 +179,18 @@ const ResumeManager = () => {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 bg-white/5 border border-white/10 rounded-3xl">
-            <div className="p-6 bg-white/5 rounded-full mb-6">
-              <FileText className="w-12 h-12 text-white/30" />
+          <div className="flex flex-col items-center justify-center py-24 dark:bg-white/5 bg-white border dark:border-white/10 border-gray-200 rounded-3xl shadow-sm">
+            <div className="p-6 dark:bg-white/5 bg-gray-50 rounded-full mb-6">
+              <FileText className="w-12 h-12 dark:text-white/30 text-gray-400" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No resumes found</h3>
-            <p className="text-white/50 mb-8 max-w-md text-center">
+            <h3 className="text-xl font-semibold dark:text-white text-gray-900 mb-2">No resumes found</h3>
+            <p className="dark:text-white/50 text-gray-500 mb-8 max-w-md text-center">
               {searchQuery ? 'Try adjusting your search criteria.' : "You haven't uploaded any resumes yet. Add one to get started."}
             </p>
             {!searchQuery && (
               <button 
                 onClick={() => setIsUploadOpen(true)}
-                className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white font-medium transition-colors"
+                className="px-6 py-3 dark:bg-white/10 bg-gray-100 dark:hover:bg-white/20 hover:bg-gray-200 border dark:border-white/10 border-gray-200 rounded-xl dark:text-white text-gray-900 font-medium transition-colors"
               >
                 Upload First Resume
               </button>
@@ -201,18 +201,18 @@ const ResumeManager = () => {
 
       {/* Upload Modal */}
       {isUploadOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl opacity-100 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-slate-700">
-              <h2 className="text-xl font-semibold text-white">Upload New Resume</h2>
-              <button onClick={() => setIsUploadOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 dark:bg-black/80 bg-gray-900/50 backdrop-blur-md">
+          <div className="dark:bg-slate-900 bg-white border dark:border-slate-700 border-gray-200 rounded-3xl w-full max-w-md shadow-2xl opacity-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-6 border-b dark:border-slate-700 border-gray-200">
+              <h2 className="text-xl font-semibold dark:text-white text-gray-900">Upload New Resume</h2>
+              <button onClick={() => setIsUploadOpen(false)} className="dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900 transition-colors">
                 <X className="w-6 h-6" />
               </button>
             </div>
             
             <form onSubmit={handleUploadSubmit} className="p-6 flex flex-col gap-5">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Resume File (PDF, DOCX)</label>
+                <label className="block text-sm font-medium dark:text-slate-300 text-gray-700 mb-2">Resume File (PDF, DOCX)</label>
                 <div className="relative">
                   <input 
                     type="file" 
@@ -221,9 +221,9 @@ const ResumeManager = () => {
                     onChange={(e) => setFile(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className={`flex items-center gap-3 p-4 border-2 border-dashed ${file ? 'border-[#4a6fff] bg-[#4a6fff]/20' : 'border-slate-600 bg-slate-800'} rounded-xl transition-colors`}>
-                    <UploadCloud className={`w-6 h-6 ${file ? 'text-[#4a6fff]' : 'text-slate-400'}`} />
-                    <span className={`text-sm ${file ? 'text-white truncate' : 'text-slate-400'}`}>
+                  <div className={`flex items-center gap-3 p-4 border-2 border-dashed ${file ? 'border-[#4a6fff] dark:bg-[#4a6fff]/20 bg-[#4a6fff]/10' : 'dark:border-slate-600 border-gray-300 dark:bg-slate-800 bg-gray-50'} rounded-xl transition-colors`}>
+                    <UploadCloud className={`w-6 h-6 ${file ? 'text-[#4a6fff]' : 'dark:text-slate-400 text-gray-500'}`} />
+                    <span className={`text-sm ${file ? 'dark:text-white text-gray-900 truncate' : 'dark:text-slate-400 text-gray-500'}`}>
                       {file ? file.name : 'Click or drag file here'}
                     </span>
                   </div>
@@ -231,27 +231,25 @@ const ResumeManager = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Title</label>
+                <label className="block text-sm font-medium dark:text-slate-300 text-gray-700 mb-2">Title</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. Frontend Engineer - Dark Theme"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder-gray-400 outline-none focus:border-[#4a6fff] transition-colors"
-                  style={{ backgroundColor: 'white', color: 'black' }}
+                  className="w-full border dark:border-gray-600 border-gray-300 rounded-xl px-4 py-3 dark:placeholder-gray-400 placeholder-gray-500 outline-none focus:border-[#4a6fff] transition-colors dark:bg-white bg-gray-50 dark:text-black text-gray-900"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Tags (comma separated)</label>
+                <label className="block text-sm font-medium dark:text-slate-300 text-gray-700 mb-2">Tags (comma separated)</label>
                 <input 
                   type="text" 
                   placeholder="e.g. React, UI/UX, Startup"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder-gray-400 outline-none focus:border-[#4a6fff] transition-colors"
-                  style={{ backgroundColor: 'white', color: 'black' }}
+                  className="w-full border dark:border-gray-600 border-gray-300 rounded-xl px-4 py-3 dark:placeholder-gray-400 placeholder-gray-500 outline-none focus:border-[#4a6fff] transition-colors dark:bg-white bg-gray-50 dark:text-black text-gray-900"
                 />
               </div>
               
@@ -259,7 +257,7 @@ const ResumeManager = () => {
                 <button 
                   type="button" 
                   onClick={() => setIsUploadOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors font-medium"
+                  className="px-5 py-2.5 rounded-xl dark:text-slate-300 text-gray-600 dark:hover:text-white hover:text-gray-900 dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors font-medium"
                 >
                   Cancel
                 </button>
@@ -279,38 +277,36 @@ const ResumeManager = () => {
 
       {/* Edit Modal */}
       {isEditOpen && editingResume && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md shadow-2xl opacity-100 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-slate-700">
-              <h2 className="text-xl font-semibold text-white">Edit Resume Details</h2>
-              <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 dark:bg-black/80 bg-gray-900/50 backdrop-blur-md">
+          <div className="dark:bg-slate-900 bg-white border dark:border-slate-700 border-gray-200 rounded-3xl w-full max-w-md shadow-2xl opacity-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-6 border-b dark:border-slate-700 border-gray-200">
+              <h2 className="text-xl font-semibold dark:text-white text-gray-900">Edit Resume Details</h2>
+              <button onClick={() => setIsEditOpen(false)} className="dark:text-slate-400 text-gray-500 dark:hover:text-white hover:text-gray-900 transition-colors">
                 <X className="w-6 h-6" />
               </button>
             </div>
             
             <form onSubmit={handleEditSubmit} className="p-6 flex flex-col gap-5">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Title</label>
+                <label className="block text-sm font-medium dark:text-slate-300 text-gray-700 mb-2">Title</label>
                 <input 
                   type="text" 
                   required
                   placeholder="e.g. Frontend Engineer - Dark Theme"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder-gray-400 outline-none focus:border-[#4a6fff] transition-colors"
-                  style={{ backgroundColor: 'white', color: 'black' }}
+                  className="w-full border dark:border-gray-600 border-gray-300 rounded-xl px-4 py-3 dark:placeholder-gray-400 placeholder-gray-500 outline-none focus:border-[#4a6fff] transition-colors dark:bg-white bg-gray-50 dark:text-black text-gray-900"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Tags (comma separated)</label>
+                <label className="block text-sm font-medium dark:text-slate-300 text-gray-700 mb-2">Tags (comma separated)</label>
                 <input 
                   type="text" 
                   placeholder="e.g. React, UI/UX, Startup"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 placeholder-gray-400 outline-none focus:border-[#4a6fff] transition-colors"
-                  style={{ backgroundColor: 'white', color: 'black' }}
+                  className="w-full border dark:border-gray-600 border-gray-300 rounded-xl px-4 py-3 dark:placeholder-gray-400 placeholder-gray-500 outline-none focus:border-[#4a6fff] transition-colors dark:bg-white bg-gray-50 dark:text-black text-gray-900"
                 />
               </div>
               
@@ -318,7 +314,7 @@ const ResumeManager = () => {
                 <button 
                   type="button" 
                   onClick={() => setIsEditOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors font-medium"
+                  className="px-5 py-2.5 rounded-xl dark:text-slate-300 text-gray-600 dark:hover:text-white hover:text-gray-900 dark:hover:bg-slate-800 hover:bg-gray-100 transition-colors font-medium"
                 >
                   Cancel
                 </button>
