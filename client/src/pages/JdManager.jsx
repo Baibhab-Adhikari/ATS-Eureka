@@ -120,8 +120,12 @@ const JdManager = () => {
     }
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
       const payload = {
@@ -141,6 +145,8 @@ const JdManager = () => {
       fetchJds();
     } catch (error) {
       toast.error(error.message || 'Failed to save job description');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -285,7 +291,9 @@ const JdManager = () => {
 
               <div className="flex justify-end gap-4 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-medium transition-colors">Cancel</button>
-                <button type="submit" className="px-6 py-3 bg-[#4a6fff] hover:bg-[#3b5bdf] rounded-xl font-medium transition-colors">Save</button>
+                <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-[#4a6fff] hover:bg-[#3b5bdf] rounded-xl font-medium transition-colors disabled:opacity-50">
+                  {isSubmitting ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </form>
           </div>

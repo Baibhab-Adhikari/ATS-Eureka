@@ -100,17 +100,21 @@ const ResumeManager = () => {
   const handleDownload = async (resume) => {
     try {
       const token = localStorage.getItem('token');
-      const blob = await downloadResumeUrl(resume._id || resume.id, token);
+      const resultData = await downloadResumeUrl(resume._id || resume.id, token);
       
-      // Create a blob URL and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = resume.file_name;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (resultData.isUrl) {
+        window.open(resultData.url, '_blank');
+      } else {
+        // Create a blob URL and trigger download
+        const url = window.URL.createObjectURL(resultData.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = resume.file_name;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
       
     } catch (error) {
       toast.error('Failed to download resume');

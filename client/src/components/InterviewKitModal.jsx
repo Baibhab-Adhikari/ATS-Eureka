@@ -45,16 +45,20 @@ const InterviewKitModal = ({ isOpen, onClose, candidate, jd }) => {
 
     try {
       const token = localStorage.getItem('token');
-      const blob = await exportResume(format, markdown, token);
+      const resultData = await exportResume(format, markdown, token);
       
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Interview_Kit_${candidate.candidate_name.replace(/\\s+/g, '_')}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (resultData.isUrl) {
+        window.open(resultData.url, '_blank');
+      } else {
+        const url = window.URL.createObjectURL(resultData.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Interview_Kit_${candidate.candidate_name.replace(/\s+/g, '_')}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
       toast.success(`Downloaded ${format.toUpperCase()} successfully`);
     } catch (error) {
       toast.error(`Failed to download ${format.toUpperCase()}`);

@@ -82,13 +82,20 @@ const ResumeTailor = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const blob = await exportResume(format, result.tailored_resume, token);
-      const element = document.createElement("a");
-      element.href = URL.createObjectURL(blob);
-      element.download = `tailored_resume.${format}`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
+      const resultData = await exportResume(format, result.tailored_resume, token);
+      
+      if (resultData.isUrl) {
+        window.open(resultData.url, '_blank');
+      } else {
+        const url = window.URL.createObjectURL(resultData.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Tailored_Resume.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
     } catch (error) {
       toast.error(`Failed to download ${format.toUpperCase()}: ` + error.message);
     }

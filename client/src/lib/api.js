@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8000/api';
+const API_URL = '/api';
 
 export const login = async (username, password, user_type) => {
   const formData = new FormData();
@@ -188,17 +188,23 @@ export const deleteResume = async (id, token) => {
   return response.json();
 };
 
-export const downloadResumeUrl = (id, token) => {
-  // In a real app we might fetch as blob, but setting src with token isn't easy if we use query params.
-  // Since we rely on Authorization header, we need a fetch blob method.
-  return fetch(`${API_URL}/resumes/${id}/download`, {
+export const downloadResumeUrl = async (id, token) => {
+  const res = await fetch(`${API_URL}/resumes/${id}/download`, {
     headers: {
       'Authorization': `Bearer ${token}`
     }
-  }).then(res => {
-    if (!res.ok) throw new Error('Download failed');
-    return res.blob();
   });
+  
+  if (!res.ok) throw new Error('Download failed');
+  
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await res.json();
+    return { isUrl: true, url: data.url };
+  }
+  
+  const blob = await res.blob();
+  return { isUrl: false, blob: blob };
 };
 
 // --- Applications API ---
@@ -316,7 +322,15 @@ export const exportResume = async (format, markdownText, token) => {
     const error = await response.json();
     throw new Error(error.detail || 'Failed to export resume');
   }
-  return response.blob();
+
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json();
+    return { isUrl: true, url: data.url };
+  }
+  
+  const blob = await response.blob();
+  return { isUrl: false, blob: blob };
 };
 
 export const generateInterviewPrep = async (resumeId, jdText, jdFile, token) => {

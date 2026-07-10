@@ -15,6 +15,8 @@ from fastapi import (Depends, FastAPI, File, Form, HTTPException, Request,
                      UploadFile)
 import asyncio
 import logging
+import os
+import sys
 import time
 from datetime import datetime
 from typing import List
@@ -30,7 +32,7 @@ from services.hr_dashboard_service import HrDashboardService
 
 # Configure logging
 logging.basicConfig(
-    filename='app.log',
+    stream=sys.stdout,
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
@@ -41,7 +43,18 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Initialize services
-storage_provider = LocalStorageProvider()
+from config import USE_S3, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET_NAME
+
+if USE_S3:
+    from services.s3_storage_service import S3StorageProvider
+    storage_provider = S3StorageProvider(
+        bucket_name=AWS_S3_BUCKET_NAME,
+        access_key_id=AWS_ACCESS_KEY_ID,
+        secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_REGION
+    )
+else:
+    storage_provider = LocalStorageProvider()
 resume_service = ResumeService(storage_provider)
 application_service = ApplicationService()
 jd_service = JdService()
@@ -130,6 +143,9 @@ async def get_resume(resume_id: str, current_user: dict = Depends(get_current_us
 @app.get("/api/resumes/{resume_id}/download")
 async def download_resume(resume_id: str, current_user: dict = Depends(get_current_user)):
     resume = await resume_service.get_resume(resume_id, str(current_user["_id"]))
+    url = storage_provider.get_url(resume.file_path)
+    if url:
+        return JSONResponse(content={"url": url})
     return FileResponse(path=resume.file_path, filename=resume.file_name, media_type=resume.mime_type)
 
 @app.delete("/api/resumes/{resume_id}")
@@ -172,8 +188,7 @@ async def delete_application(app_id: str, current_user: dict = Depends(get_curre
     return {"message": "Application deleted successfully"}
 
 
-@app.get("/")
-@app.get("/health")
+@app.get("/api/health")
 def health_check():
     return {"status": "healthy"}
 
@@ -668,20 +683,33 @@ async def get_user_history(current_user: dict = Depends(get_current_user)):
 async def export_resume(request: ExportRequest, user_id: str = Depends(get_current_user)):
     """Export tailored resume to PDF or DOCX."""
     try:
+        import uuid
+        unique_filename = f"export_{uuid.uuid4().hex}.{request.format}"
+        
         if request.format == 'pdf':
             pdf_io = markdown_to_pdf(request.markdown_text)
-            return StreamingResponse(
-                pdf_io, 
-                media_type="application/pdf", 
-                headers={"Content-Disposition": "attachment; filename=tailored_resume.pdf"}
-            )
+            if USE_S3:
+                file_path = await storage_provider.save(pdf_io, unique_filename)
+                url = storage_provider.get_url(file_path)
+                return JSONResponse(content={"url": url})
+            else:
+                return StreamingResponse(
+                    pdf_io, 
+                    media_type="application/pdf", 
+                    headers={"Content-Disposition": "attachment; filename=tailored_resume.pdf"}
+                )
         elif request.format == 'docx':
             docx_io = markdown_to_docx(request.markdown_text)
-            return StreamingResponse(
-                docx_io,
-                media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                headers={"Content-Disposition": "attachment; filename=tailored_resume.docx"}
-            )
+            if USE_S3:
+                file_path = await storage_provider.save(docx_io, unique_filename)
+                url = storage_provider.get_url(file_path)
+                return JSONResponse(content={"url": url})
+            else:
+                return StreamingResponse(
+                    docx_io,
+                    media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": "attachment; filename=tailored_resume.docx"}
+                )
         else:
             raise HTTPException(status_code=400, detail="Unsupported format")
     except Exception as e:
@@ -746,14 +774,13 @@ async def parse_employer_jd_file(
     extracted_text = await extract_text_from_file(file)
     parsed_data = await jd_service.parse_jd_from_text(extracted_text)
     
-    # Save the JD file to local storage permanently
+    # Save the JD file to storage permanently
     try:
-        jd_storage = LocalStorageProvider(base_dir="uploads/jds")
         await file.seek(0)
         import uuid
         ext = file.filename.split('.')[-1]
-        unique_filename = f"{uuid.uuid4().hex}.{ext}"
-        file_path = await jd_storage.save(file.file, unique_filename)
+        unique_filename = f"jd_{uuid.uuid4().hex}.{ext}"
+        file_path = await storage_provider.save(file.file, unique_filename)
         # We can add this file path to the parsed data so the frontend can store it
         parsed_data["file_path"] = file_path
     except Exception as e:
@@ -848,3 +875,17 @@ async def get_candidate_summary(candidate_id: str, current_user: dict = Depends(
 @app.get("/api/employer/dashboard")
 async def get_employer_dashboard(current_user: dict = Depends(get_current_user)):
     return await hr_dashboard_service.get_dashboard_data(str(current_user["_id"]))
+
+
+# ── Serve React SPA in production ────────────────────────────────────
+_client_dist = os.path.join(os.path.dirname(__file__), "client", "dist")
+if os.path.isdir(_client_dist):
+    from fastapi.staticfiles import StaticFiles
+
+    # Serve JS/CSS/image assets
+    app.mount("/assets", StaticFiles(directory=os.path.join(_client_dist, "assets")), name="static-assets")
+
+    # Catch-all: serve index.html for any non-API route (React Router)
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        return FileResponse(os.path.join(_client_dist, "index.html"))

@@ -1,11 +1,44 @@
-venv/
-__pycache__/
-.mypy_cache/
-*.pyc
-*.pyo
-*.pyd
-.git/
-.env.example
-README.md
-static/
+# Ignore version control
+.git
 .gitignore
+
+# Ignore environment files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+venv/
+env/
+.venv/
+
+# Node
+client/node_modules/
+client/dist/
+
+# IDE
+.vscode/
+.idea/
+*.sw?
+
+# Local storage (S3 is used in production)
+uploads/
+
+# Logs
+*.log
+app.log
+
+# OS
+.DS_Store
+
+# Agents / AI
+.agents/
+.gemini/
+
+# Misc
+rough.py
+rough2.py

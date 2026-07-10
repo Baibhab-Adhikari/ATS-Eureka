@@ -90,16 +90,20 @@ ${(analysis['Missing Skills'] || []).map(skill => `- ${skill}`).join('\n')}
       `;
 
       const token = localStorage.getItem('token');
-      const blob = await exportResume('pdf', mdContent, token);
+      const resultData = await exportResume('pdf', mdContent, token);
       
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Analysis_${candidate.candidate_name.replace(/\s+/g, '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (resultData.isUrl) {
+        window.open(resultData.url, '_blank');
+      } else {
+        const url = window.URL.createObjectURL(resultData.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Candidate_Summary_${candidate.cv_filename}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
       toast.success('Report exported successfully');
     } catch (error) {
       toast.error('Failed to export report');

@@ -18,6 +18,11 @@ class StorageService(ABC):
         """Delete the file from storage."""
         pass
 
+    @abstractmethod
+    def get_url(self, file_path: str, expires_in: int = 3600) -> str | None:
+        """Get a presigned URL if applicable. Returns None for local storage."""
+        pass
+
 
 class LocalStorageProvider(StorageService):
     def __init__(self, base_dir: str = "uploads/resumes"):
@@ -40,3 +45,6 @@ class LocalStorageProvider(StorageService):
             os.remove(file_path)
             return True
         return False
+
+    def get_url(self, file_path: str, expires_in: int = 3600) -> str | None:
+        return None
